@@ -72,11 +72,10 @@ def latest_gke_version(minor_version):
                     f"{minor_version} is: {latest_gke_versions[0]}"
                 )
                 return latest_gke_versions[0]
-            else:
-                print(
-                    f"😬 No matching GKE version found for minor version "
-                    f"{minor_version}. Versions available are: {unique_values}"
-                )
+            print(
+                f"😬 No matching GKE version found for minor version "
+                f"{minor_version}. Versions available are: {unique_values}"
+            )
 
 
 def switch_active_resources():
@@ -105,7 +104,7 @@ def switch_active_resources():
 def update_gke_version(pool_to_update, gke_version):
     """Updates GKE version in env.yaml file"""
 
-    for key, value in yaml_content.items():
+    for key in yaml_content:
         if (
             key == "KUBERNETES_VERSION"
             or f"NODE_POOL_{pool_to_update.upper()}_KUBERNETES_VERSION" in key
