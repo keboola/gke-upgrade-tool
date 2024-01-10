@@ -1,2 +1,0 @@
-Requests==2.31.0
-ruamel.yaml==0.18.5

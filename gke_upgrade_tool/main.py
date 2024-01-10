@@ -78,10 +78,10 @@ def latest_gke_version(minor_version):
             )
 
 
-def switch_active_resources():
+def switch_active_resources(gke_version):
     """Switches A/B Kubernetes node pools in env.yaml file"""
 
-    if yaml_content["KUBERNETES_VERSION"] != new_gke_version:
+    if yaml_content["KUBERNETES_VERSION"] != gke_version:
         for key, value in yaml_content.items():
             if "POOL_ACTIVE" in key:
                 if value == "a":
@@ -113,12 +113,21 @@ def update_gke_version(pool_to_update, gke_version):
             print(f"✅ {key} set to {gke_version}.")
 
 
-new_gke_version = latest_gke_version(args.minor_version)
+def main():
+    """Main function"""
+    new_gke_version = latest_gke_version(args.minor_version)
 
-if yaml_content["KUBERNETES_VERSION"] != new_gke_version:
-    update_gke_version(switch_active_resources(), new_gke_version)
-else:
-    print("🫡  File already using latest GKE version.")
+    if new_gke_version not in [
+        yaml_content["MAIN_NODE_POOL_A_KUBERNETES_VERSION"],
+        yaml_content["MAIN_NODE_POOL_B_KUBERNETES_VERSION"],
+    ]:
+        update_gke_version(switch_active_resources(new_gke_version), new_gke_version)
+    else:
+        print("🫡  File already using latest GKE version.")
 
-with open(args.env_file, "w", encoding="utf-8") as file:
-    yaml.dump(yaml_content, file)
+    with open(args.env_file, "w", encoding="utf-8") as new_file:
+        yaml.dump(yaml_content, new_file)
+
+
+if __name__ == "__main__":
+    main()
