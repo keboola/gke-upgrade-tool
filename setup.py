@@ -8,4 +8,8 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     entry_points={"console_scripts": ["gke-upgrade-tool = gke_upgrade_tool.main:main"]},
     install_requires=["ruamel.yaml", "requests"],
+    setuptools_git_versioning={
+        "enabled": True,
+    },
+    setup_requires=["setuptools-git-versioning<2"],
 )

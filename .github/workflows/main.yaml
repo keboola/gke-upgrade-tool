@@ -6,14 +6,17 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  deploy:
+  build-and-publish:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
@@ -31,22 +34,10 @@ jobs:
           git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:"- %s ([%h](https://github.com/$GITHUB_REPOSITORY/commit/%H))" >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: ${{ env.RELEASE_NOTES }}
-          draft: false
-          prerelease: false
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/${{ github.repository }}-${{ github.ref#refs/tags/ }}.tar.gz
-          asset_name: ${{ github.repository }}-${{ github.ref#refs/tags/ }}.tar.gz
-          asset_content_type: application/gzip
+          artifacts: "./dist/gke_upgrade_tool-*.tar.gz"
+          bodyFile: ${{ env.RELEASE_NOTES }}
+          allowUpdates: true
+          replacesArtifacts: true
+          generateReleaseNotes: true
