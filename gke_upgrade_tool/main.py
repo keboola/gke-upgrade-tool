@@ -117,10 +117,10 @@ def main():
     """Main function"""
     new_gke_version = latest_gke_version(args.minor_version)
 
-    if new_gke_version not in [
-        yaml_content["MAIN_NODE_POOL_A_KUBERNETES_VERSION"],
-        yaml_content["MAIN_NODE_POOL_B_KUBERNETES_VERSION"],
-    ]:
+    if (
+        new_gke_version not in yaml_content["MAIN_NODE_POOL_A_KUBERNETES_VERSION"]
+        or new_gke_version not in yaml_content["MAIN_NODE_POOL_B_KUBERNETES_VERSION"]
+    ):
         update_gke_version(switch_active_resources(new_gke_version), new_gke_version)
     else:
         print("🫡  File already using latest GKE version.")
