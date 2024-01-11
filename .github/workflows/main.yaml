@@ -10,10 +10,13 @@ permissions:
   contents: write
   packages: write
 
-jobs:
-  build-and-publish:
-    runs-on: ubuntu-latest
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
+jobs:
+  build-and-publish-package:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -29,6 +32,19 @@ jobs:
           pip install build
       - name: Build package
         run: python -m build
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "./dist/gke_upgrade_tool-*.tar.gz"
+          allowUpdates: true
+          replacesArtifacts: true
+          generateReleaseNotes: true
+  
+  build-and-publish-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3.0.0
       - name: Set up Docker Buildx
@@ -39,17 +55,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata for the Docker image
+        id: meta
+        uses: docker/metadata-action@v5.5.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
       - name: Build and push image
         uses: docker/build-push-action@v5.1.0
         with:
           context: "{{defaultContext}}:gke_upgrade_tool"
           push: true
-          tags: ghcr.io/keboola/gke-upgrade-tool:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
-      - name: Create Release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "./dist/gke_upgrade_tool-*.tar.gz"
-          allowUpdates: true
-          replacesArtifacts: true
-          generateReleaseNotes: true
