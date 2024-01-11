@@ -16,13 +16,14 @@ import xml.etree.ElementTree as ET
 
 import ruamel.yaml
 import requests
+from semver.version import Version
 
 GKE_RELEASE_NOTES = "https://cloud.google.com/feeds/gke-no-channel-release-notes.xml"
 
 # Parse arguments: env.yaml file path, GKE minor version
 parser = argparse.ArgumentParser()
 parser.add_argument("env_file", help="Path to env.yaml file")
-parser.add_argument("minor_version", help="GKE minor version to search for")
+parser.add_argument("-m", "--minor", help="GKE minor version to search for")
 args = parser.parse_args()
 
 yaml = ruamel.yaml.YAML()
@@ -37,18 +38,17 @@ if not args.env_file:
     raise ValueError(
         "Please specify env.yaml file path, e.g. kbc-stack/terraform/env.yaml"
     )
-if not args.minor_version:
-    raise ValueError("Please specify GKE minor version, e.g. 1.15")
 
 # Validate env_file existence
 if not os.path.exists(args.env_file):
     raise FileNotFoundError("Specified file does not exist.")
 
-# Validate minor_version format
-if not re.match(r"\d+\.\d+", args.minor_version):
-    raise ValueError(
-        "Invalid minor_version format. Please use the format 'x.y' where x and y are numbers."
-    )
+# Validate minor version format if specified
+if args.minor:
+    if not re.match(r"\d+\.\d+", args.minor):
+        raise ValueError(
+            "Invalid minor_version format. Please use the format 'x.y' where x and y are numbers."
+        )
 
 
 def latest_gke_version(minor_version):
@@ -76,6 +76,25 @@ def latest_gke_version(minor_version):
                 f"😬 No matching GKE version found for minor version "
                 f"{minor_version}. Versions available are: {unique_values}"
             )
+
+
+def current_gke_version():
+    """Returns current GKE version from env.yaml file"""
+    control_plane_version = yaml_content["KUBERNETES_VERSION"]
+    node_pool_a_version = yaml_content["MAIN_NODE_POOL_A_KUBERNETES_VERSION"]
+    node_pool_b_version = yaml_content["MAIN_NODE_POOL_B_KUBERNETES_VERSION"]
+
+    highest_gke_version = max(
+        [control_plane_version, node_pool_a_version, node_pool_b_version],
+        key=Version.parse,
+    )
+    current_gke_minor = (
+        highest_gke_version.split(".")[0] + "." + highest_gke_version.split(".")[1]
+    )
+
+    print(f"🔎 Highest GKE version in file is: {highest_gke_version}")
+
+    return current_gke_minor
 
 
 def switch_active_resources(gke_version):
@@ -115,7 +134,11 @@ def update_gke_version(pool_to_update, gke_version):
 
 def main():
     """Main function"""
-    new_gke_version = latest_gke_version(args.minor_version)
+
+    if args.minor:
+        new_gke_version = latest_gke_version(args.minor)
+    else:
+        new_gke_version = latest_gke_version(current_gke_version())
 
     if (
         new_gke_version not in yaml_content["MAIN_NODE_POOL_A_KUBERNETES_VERSION"]
