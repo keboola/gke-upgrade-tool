@@ -15,7 +15,13 @@ What it does is:
 ## Usage
 
 ```bash
-gke-upgrade-tool <path-to-env.yaml> <minor-version>
+gke-upgrade-tool /path/to/your/env.yaml minor-version
+```
+
+Can also be run as a Docker container:
+
+```bash
+docker run --rm -v /path/to/your/env.yaml:/env.yaml ghcr.io/keboola/gke-upgrade-tool:latest /env.yaml minor-version
 ```
 
 ## Example
