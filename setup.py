@@ -6,7 +6,7 @@ setuptools.setup(
     description="Prepares KBC Stacks env.yaml for GKE upgrade",
     packages=setuptools.find_packages(),
     entry_points={"console_scripts": ["gke-upgrade-tool = gke_upgrade_tool.main:main"]},
-    install_requires=["ruamel.yaml", "requests"],
+    install_requires=["ruamel.yaml", "requests", "semver"],
     setuptools_git_versioning={
         "enabled": True,
     },
