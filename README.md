@@ -24,7 +24,7 @@ You can use Docker image `ghcr.io/keboola/gke-upgrade-tool:latest` (see below fo
 Or install the tool locally:
 
 - Download the latest release from [Releases](https://github.com/keboola/gke-upgrade-tool/releases/latest)
-- `pip install gke-upgrade-tool-*.tar.gz`
+- `pip install gke_upgrade_tool-*.tar.gz`
 - `gke-upgrade-tool --help`
 
 ## Usage
@@ -36,7 +36,7 @@ gke-upgrade-tool /path/to/your/env.yaml
 gke-upgrade-tool /path/to/your/env.yaml 1.26
 ```
 
-Can also be run as a Docker container:
+Or as a Docker container:
 
 ```bash
 docker run --rm -v /path/to/your/env.yaml:/env.yaml ghcr.io/keboola/gke-upgrade-tool:latest /env.yaml
@@ -45,7 +45,7 @@ docker run --rm -v /path/to/your/env.yaml:/env.yaml ghcr.io/keboola/gke-upgrade-
 ## Example
 
 ```console
-$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml 1.25
+$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml
 🔎 Highest GKE version in file is: 1.25.14-gke.10700
 🎉 Latest GKE version for minor version 1.25 is: 1.25.16-gke.1041000
 🔄 Active pool switched to: B
@@ -57,7 +57,7 @@ $ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml 1.25
 ✅ SANDBOX_NODE_POOL_B_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
 
 # Running again...
-$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml 1.25
+$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml
 🔎 Highest GKE version in file is: 1.25.16-gke.1041000
 🎉 Latest GKE version for minor version 1.25 is: 1.25.16-gke.1041000
 👉 File has been already updated to latest GKE version. Not switching active node pool. Only updating non-active pool.
@@ -69,7 +69,7 @@ $ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml 1.25
 ✅ SANDBOX_NODE_POOL_A_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
 
 # Nothing to change...
-$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml 1.25
+$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml
 🔎 Highest GKE version in file is: 1.25.16-gke.1041000
 🎉 Latest GKE version for minor version 1.25 is: 1.25.16-gke.1041000
 🫡 File already using latest GKE version.
