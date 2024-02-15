@@ -3,10 +3,12 @@ for specified minor version, switches active A/B node pools and
 updates GKE version in specified env.yaml file.
 
 Usage:
-    python gke_upgrade_script.py <env_file> <minor_version>
+    gke-upgrade-tool <env_file>
+    gke-upgrade-tool <env_file> -m <minor_version>
 
 Example:
-    python gke_upgrade_script.py kbc-stack/terraform/env.yaml 1.15
+    gke-upgrade-tool kbc-stack/terraform/env.yaml
+    gke-upgrade-tool kbc-stack/terraform/env.yaml -m 1.15
 """
 
 import argparse

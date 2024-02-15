@@ -33,7 +33,7 @@ Or install the tool locally:
 gke-upgrade-tool /path/to/your/env.yaml
 
 # Or specify minor version to upgrade to
-gke-upgrade-tool /path/to/your/env.yaml 1.26
+gke-upgrade-tool /path/to/your/env.yaml -m 1.26
 ```
 
 Or as a Docker container:
