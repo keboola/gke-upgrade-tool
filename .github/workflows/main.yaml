@@ -17,6 +17,12 @@ env:
 jobs:
   test-action:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/keboola/gke-upgrade-tool:latest
+      options: --entrypoint /bin/sh
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       # - name: GHCR login
       #   uses: docker/login-action@v3.0.0
@@ -33,18 +39,20 @@ jobs:
       #       python -m pip install --upgrade pip
       #       pip install -r requirements.txt
       #       python gke_upgrade_tool/main.py testenv.yaml
-      # - name: Update testenv.yaml
-      #   run: |
-      #     uid=$(id -u)
-      #     gid=$(id -g)
-      #     echo "UID: $uid"
-      #     echo "GID: $gid"
-      #     docker run --rm -v ./testenv.yaml:/env.yaml ghcr.io/keboola/gke-upgrade-tool:v0.0.3 /env.yaml
-      #     git diff ./testenv.yaml
-      - name: Upgrade GKE version
-        uses: keboola/gke-upgrade-tool@michal-github-action
-        with:
-          path-to-env-file: "testenv.yaml"
+      - name: Update testenv.yaml
+        run: |
+          uid=$(id -u)
+          gid=$(id -g)
+          echo "UID: $uid"
+          echo "GID: $gid"
+          ls -lah
+          gke-upgrade-tool testenv.yaml
+          # docker run --rm -v ./testenv.yaml:/env.yaml ghcr.io/keboola/gke-upgrade-tool:v0.0.3 /env.yaml
+          git diff ./testenv.yaml
+      # - name: Upgrade GKE version
+      #   uses: keboola/gke-upgrade-tool@michal-github-action
+      #   with:
+      #     path-to-env-file: "testenv.yaml"
   # build-and-publish-package:
   #   runs-on: ubuntu-latest
   #   steps:
