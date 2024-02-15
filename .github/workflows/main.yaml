@@ -3,8 +3,8 @@ name: Build and Publish
 on:
   workflow_dispatch:
   push:
-    tags:
-      - "v*"
+    # tags:
+    #   - "v*"
 
 permissions:
   contents: write
@@ -15,56 +15,86 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-publish-package:
+  test-action:
     runs-on: ubuntu-latest
     steps:
+      # - name: GHCR login
+      #   uses: docker/login-action@v3.0.0
+      #   with:
+      #     registry: ghcr.io
+      #     username: ${{ github.actor }}
+      #     password: ${{ secrets.GITHUB_TOKEN }}
       - name: Checkout code
         uses: actions/checkout@v3
+      # - name: Run image
+      #   uses: docker://cgr.dev/chainguard/python:latest-dev
+      #   with:
+      #     args: |
+      #       python -m pip install --upgrade pip
+      #       pip install -r requirements.txt
+      #       python gke_upgrade_tool/main.py testenv.yaml
+      # - name: Update testenv.yaml
+      #   run: |
+      #     uid=$(id -u)
+      #     gid=$(id -g)
+      #     echo "UID: $uid"
+      #     echo "GID: $gid"
+      #     docker run --rm -v ./testenv.yaml:/env.yaml ghcr.io/keboola/gke-upgrade-tool:v0.0.3 /env.yaml
+      #     git diff ./testenv.yaml
+      - name: Upgrade GKE version
+        uses: keboola/gke-upgrade-tool@michal-github-action
         with:
-          fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@v3
-        with:
-          python-version: "3.x"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install build
-      - name: Build package
-        run: python -m build
-      - name: Create Release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "./dist/gke_upgrade_tool-*.tar.gz"
-          allowUpdates: true
-          replacesArtifacts: true
-          generateReleaseNotes: true
-  
-  build-and-publish-docker:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3.0.0
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.0.0
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3.0.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract metadata for the Docker image
-        id: meta
-        uses: docker/metadata-action@v5.5.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-      - name: Build and push image
-        uses: docker/build-push-action@v5.1.0
-        with:
-          context: "{{defaultContext}}:gke_upgrade_tool"
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
+          path-to-env-file: "testenv.yaml"
+  # build-and-publish-package:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
+  #       with:
+  #         fetch-depth: 0
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v3
+  #       with:
+  #         python-version: "3.x"
+  #     - name: Install dependencies
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install build
+  #     - name: Build package
+  #       run: python -m build
+  #     - name: Create Release
+  #       uses: ncipollo/release-action@v1
+  #       with:
+  #         artifacts: "./dist/gke_upgrade_tool-*.tar.gz"
+  #         allowUpdates: true
+  #         replacesArtifacts: true
+  #         generateReleaseNotes: true
+
+  # build-and-publish-docker:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
+  #     - name: Set up QEMU
+  #       uses: docker/setup-qemu-action@v3.0.0
+  #     - name: Set up Docker Buildx
+  #       uses: docker/setup-buildx-action@v3.0.0
+  #     - name: Login to GitHub Container Registry
+  #       uses: docker/login-action@v3.0.0
+  #       with:
+  #         registry: ghcr.io
+  #         username: ${{ github.actor }}
+  #         password: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Extract metadata for the Docker image
+  #       id: meta
+  #       uses: docker/metadata-action@v5.5.0
+  #       with:
+  #         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+  #     - name: Build and push image
+  #       uses: docker/build-push-action@v5.1.0
+  #       with:
+  #         context: "{{defaultContext}}:gke_upgrade_tool"
+  #         push: true
+  #         tags: ${{ steps.meta.outputs.tags }}
+  #         labels: ${{ steps.meta.outputs.labels }}
+  #         platforms: linux/amd64,linux/arm64
