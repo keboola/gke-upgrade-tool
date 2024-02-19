@@ -7,7 +7,7 @@ on:
         description: "GKE minor version to upgrade to"
         required: false
         type: string
-  push:
+  # push:
 
 permissions:
   contents: write
