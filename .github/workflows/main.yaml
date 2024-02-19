@@ -130,7 +130,7 @@ on:
     inputs:
       kbc-stack:
         description: "KBC stack to upgrade"
-        required: true
+        required: false
         type: string
       gke-minor-version:
         description: "GKE minor version to upgrade to"
@@ -151,12 +151,15 @@ env:
 jobs:
   upgrade-gke-version:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        kbc-stacks: [test-stack, test-2-stack]
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
       - uses: ./.github/actions
         with:
-          kbc-stack: ${{ inputs.kbc-stack }}
+          kbc-stack: ${{ matrix.kbc-stack }}
           gke-minor-version: ${{ inputs.gke-minor-version }}
           jira-ticket: ${{ inputs.jira-ticket }}
     # runs-on: ubuntu-latest
