@@ -15,7 +15,7 @@ on:
         description: "Related JIRA ticket"
         required: false
         type: string
-  push:
+  # push:
 
 permissions:
   contents: write
@@ -56,6 +56,7 @@ jobs:
 
           END_HEREDOC
           )
+          echo "PR_BODY=$PR_BODY" >> $GITHUB_ENV
           fi
       - name: Deploy maintenance servers
         run: |
