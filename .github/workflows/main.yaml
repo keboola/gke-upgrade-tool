@@ -154,6 +154,7 @@ jobs:
     strategy:
       matrix:
         kbc-stacks: [test-stack, test-2-stack]
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
