@@ -1,112 +1,88 @@
-name: Build and Publish
+name: Check and upgrade all GCP stacks' GKE versions
 
 on:
   workflow_dispatch:
+    inputs:
+      gke-minor-version:
+        description: "GKE minor version to upgrade to"
+        required: false
+        type: string
   push:
-    # tags:
-    #   - "v*"
 
 permissions:
   contents: write
-  packages: write
+  pull-requests: write
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  GH_TOKEN: ${{ github.token }}
+  GKE_TOOL_ARGS: ${{ inputs.gke-minor-version }}
 
 jobs:
-  test-action:
+  upgrade-gke-version:
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
-      # - name: GHCR login
-      #   uses: docker/login-action@v3.0.0
-      #   with:
-      #     registry: ghcr.io
-      #     username: ${{ github.actor }}
-      #     password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      # - name: Run image
-      #   uses: docker://cgr.dev/chainguard/python:latest-dev
-      #   with:
-      #     args: |
-      #       python -m pip install --upgrade pip
-      #       pip install -r requirements.txt
-      #       python gke_upgrade_tool/main.py testenv.yaml
-      # - name: Update testenv.yaml
-      #   run: |
-      #     uid=$(id -u)
-      #     gid=$(id -g)
-      #     echo "UID: $uid"
-      #     echo "GID: $gid"
-      #     ls -lah
-      #     gke-upgrade-tool testenv.yaml
-      #     # docker run --rm -v ./testenv.yaml:/env.yaml ghcr.io/keboola/gke-upgrade-tool:v0.0.3 /env.yaml
-      #     git diff ./testenv.yaml
-      - name: Update testenv.yaml
+      - uses: robinraju/release-downloader@v1.9
+        with:
+          repository: "keboola/gke-upgrade-tool"
+          latest: true
+      - name: Setup environment
         run: |
-          ls -lah
-          pip install -r gke_upgrade_tool/requirements.txt --user --no-cache-dir
-          python gke_upgrade_tool/main.py testenv.yaml
-          git diff ./testenv.yaml
-      # - name: Upgrade GKE version
-      #   uses: keboola/gke-upgrade-tool@michal-github-action
-      #   with:
-      #     path-to-env-file: "testenv.yaml"
-  # build-and-publish-package:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
-  #       with:
-  #         fetch-depth: 0
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v3
-  #       with:
-  #         python-version: "3.x"
-  #     - name: Install dependencies
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         pip install build
-  #     - name: Build package
-  #       run: python -m build
-  #     - name: Create Release
-  #       uses: ncipollo/release-action@v1
-  #       with:
-  #         artifacts: "./dist/gke_upgrade_tool-*.tar.gz"
-  #         allowUpdates: true
-  #         replacesArtifacts: true
-  #         generateReleaseNotes: true
-
-  # build-and-publish-docker:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
-  #     - name: Set up QEMU
-  #       uses: docker/setup-qemu-action@v3.0.0
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v3.0.0
-  #     - name: Login to GitHub Container Registry
-  #       uses: docker/login-action@v3.0.0
-  #       with:
-  #         registry: ghcr.io
-  #         username: ${{ github.actor }}
-  #         password: ${{ secrets.GITHUB_TOKEN }}
-  #     - name: Extract metadata for the Docker image
-  #       id: meta
-  #       uses: docker/metadata-action@v5.5.0
-  #       with:
-  #         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-  #     - name: Build and push image
-  #       uses: docker/build-push-action@v5.1.0
-  #       with:
-  #         context: "{{defaultContext}}:gke_upgrade_tool"
-  #         push: true
-  #         tags: ${{ steps.meta.outputs.tags }}
-  #         labels: ${{ steps.meta.outputs.labels }}
-  #         platforms: linux/amd64,linux/arm64
+          pip install gke*.tar.gz
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+      - name: Deploy maintenance servers
+        run: |
+          sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/' testenv.yaml
+          git checkout -b michal-test-gke-upgrade-1
+          git branch --show-current
+          git commit -am "Upgrade GKE clusters #1 (Scale up maintenance server)"
+          git push origin --set-upstream michal-test-gke-upgrade-1
+          gh pr create --title "Upgrade GKE clusters #1 (Scale up maintenance server)" --body "Test PR" --base ${{ github.ref_name }} --head michal-test-gke-upgrade-1
+      - name: Turn on maintenance mode
+        run: |
+          sed -i 's/MAINTENANCE_ENABLED: false/MAINTENANCE_ENABLED: true/' testenv.yaml
+          git checkout -b michal-test-gke-upgrade-2
+          git branch --show-current
+          git commit -am "Upgrade GKE clusters #2 (Turn on maintenance mode)"
+          git push origin --set-upstream michal-test-gke-upgrade-2
+          gh pr create --title "Upgrade GKE clusters #2 (Turn on maintenance mode)" --body "Test PR" --base michal-test-gke-upgrade-1 --head michal-test-gke-upgrade-2
+      - name: Update env.yaml (Version upgrade and active node pool switch)
+        run: |
+          git branch --show-current
+          gke-upgrade-tool testenv.yaml
+          git checkout -b michal-test-gke-upgrade-3
+          git branch --show-current
+          git commit -am "Upgrade GKE clusters #3 (Upgrade GKE, switch active pool)"
+          git push origin --set-upstream michal-test-gke-upgrade-3
+          gh pr create --title "Upgrade GKE clusters #3 (Upgrade GKE, switch active pool)" --body "Test PR" --base michal-test-gke-upgrade-2 --head michal-test-gke-upgrade-3
+      - name: Update env.yaml (Non-active nodepool version upgrade)
+        run: |
+          git branch --show-current
+          gke-upgrade-tool testenv.yaml
+          git checkout -b michal-test-gke-upgrade-4
+          git commit -am "Upgrade GKE clusters #4 (Upgrade GKE on non-active pool)"
+          git push origin --set-upstream michal-test-gke-upgrade-4
+          gh pr create --title "Upgrade GKE clusters #4 (Upgrade GKE on non-active pool)" --body "Test PR" --base michal-test-gke-upgrade-3 --head michal-test-gke-upgrade-4
+      - name: Turn off maintenance mode
+        run: |
+          sed -i 's/MAINTENANCE_ENABLED: true/MAINTENANCE_ENABLED: false/' testenv.yaml
+          git checkout -b michal-test-gke-upgrade-5
+          git branch --show-current
+          git commit -am "Upgrade GKE clusters #5 (Turn off maintenance mode)"
+          git push origin --set-upstream michal-test-gke-upgrade-5
+          gh pr create --title "Upgrade GKE clusters #5 (Turn off maintenance mode)" --body "Test PR" --base michal-test-gke-upgrade-4 --head michal-test-gke-upgrade-5
+      - name: Disable maintenance servers
+        run: |
+          sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/' testenv.yaml
+          git checkout -b michal-test-gke-upgrade-6
+          git branch --show-current
+          git commit -am "Upgrade GKE clusters #6 (Scale down maintenance server)"
+          git push origin --set-upstream michal-test-gke-upgrade-6
+          gh pr create --title "Upgrade GKE clusters #6 (Scale down maintenance server)" --body "Test PR" --base michal-test-gke-upgrade-5 --head michal-test-gke-upgrade-6
