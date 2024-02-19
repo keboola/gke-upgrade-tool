@@ -1,13 +1,108 @@
-name: Check and upgrade all GCP stacks' GKE versions
+# name: Check and upgrade all GCP stacks' GKE versions
+
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       gke-minor-version:
+#         description: "GKE minor version to upgrade to"
+#         required: false
+#         type: string
+#   # push:
+
+# permissions:
+#   contents: write
+#   pull-requests: write
+
+# env:
+#   GH_TOKEN: ${{ github.token }}
+
+# jobs:
+#   upgrade-gke-version:
+#     continue-on-error: true
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4.1.1
+#       - name: Set up Python 3.12
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: "3.12"
+#       - uses: robinraju/release-downloader@v1.9
+#         with:
+#           repository: "keboola/gke-upgrade-tool"
+#           latest: true
+#       - name: Setup environment
+#         run: |
+#           pip install gke*.tar.gz
+#           git config user.name github-actions
+#           git config user.email github-actions@github.com
+#           if [ -n "${{ inputs.gke-minor-version }}" ]; then
+#             echo "GKE_TOOL_ARGS=testenv.yaml -m ${{ inputs.gke-minor-version }}" >> $GITHUB_ENV
+#           else
+#             echo "GKE_TOOL_ARGS=testenv.yaml" >> $GITHUB_ENV
+#           fi
+#       # - name: Deploy maintenance servers
+#       #   run: |
+#       #     sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/' testenv.yaml
+#       #     git checkout -b michal-test-gke-upgrade-1
+#       #     git branch --show-current
+#       #     git commit -am "Upgrade GKE clusters #1 (Scale up maintenance server)"
+#       #     git push origin --set-upstream michal-test-gke-upgrade-1
+#       #     gh pr create --title "Upgrade GKE clusters #1 (Scale up maintenance server)" --body "Test PR" --base ${{ github.ref_name }} --head michal-test-gke-upgrade-1
+#       # - name: Turn on maintenance mode
+#       #   run: |
+#       #     sed -i 's/MAINTENANCE_ENABLED: false/MAINTENANCE_ENABLED: true/' testenv.yaml
+#       #     git checkout -b michal-test-gke-upgrade-2
+#       #     git branch --show-current
+#       #     git commit -am "Upgrade GKE clusters #2 (Turn on maintenance mode)"
+#       #     git push origin --set-upstream michal-test-gke-upgrade-2
+#       #     gh pr create --title "Upgrade GKE clusters #2 (Turn on maintenance mode)" --body "Test PR" --base michal-test-gke-upgrade-1 --head michal-test-gke-upgrade-2
+#       - name: Update env.yaml (Version upgrade and active node pool switch)
+#         run: |
+#           git branch --show-current
+#           gke-upgrade-tool $GKE_TOOL_ARGS
+#           # git checkout -b michal-test-gke-upgrade-3
+#           # git branch --show-current
+#           # git commit -am "Upgrade GKE clusters #3 (Upgrade GKE, switch active pool)"
+#           # git push origin --set-upstream michal-test-gke-upgrade-3
+#           # gh pr create --title "Upgrade GKE clusters #3 (Upgrade GKE, switch active pool)" --body "Test PR" --base michal-test-gke-upgrade-2 --head michal-test-gke-upgrade-3
+#       - name: Update env.yaml (Non-active nodepool version upgrade)
+#         run: |
+#           git branch --show-current
+#           gke-upgrade-tool $GKE_TOOL_ARGS
+#           # git checkout -b michal-test-gke-upgrade-4
+#           # git commit -am "Upgrade GKE clusters #4 (Upgrade GKE on non-active pool)"
+#           # git push origin --set-upstream michal-test-gke-upgrade-4
+#           # gh pr create --title "Upgrade GKE clusters #4 (Upgrade GKE on non-active pool)" --body "Test PR" --base michal-test-gke-upgrade-3 --head michal-test-gke-upgrade-4
+#       # - name: Turn off maintenance mode
+#       #   run: |
+#       #     sed -i 's/MAINTENANCE_ENABLED: true/MAINTENANCE_ENABLED: false/' testenv.yaml
+#       #     git checkout -b michal-test-gke-upgrade-5
+#       #     git branch --show-current
+#       #     git commit -am "Upgrade GKE clusters #5 (Turn off maintenance mode)"
+#       #     git push origin --set-upstream michal-test-gke-upgrade-5
+#       #     gh pr create --title "Upgrade GKE clusters #5 (Turn off maintenance mode)" --body "Test PR" --base michal-test-gke-upgrade-4 --head michal-test-gke-upgrade-5
+#       # - name: Disable maintenance servers
+#       #   run: |
+#       #     sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/' testenv.yaml
+#       #     git checkout -b michal-test-gke-upgrade-6
+#       #     git branch --show-current
+#       #     git commit -am "Upgrade GKE clusters #6 (Scale down maintenance server)"
+#       #     git push origin --set-upstream michal-test-gke-upgrade-6
+#       #     gh pr create --title "Upgrade GKE clusters #6 (Scale down maintenance server)" --body "Test PR" --base michal-test-gke-upgrade-5 --head michal-test-gke-upgrade-6
+name: Check and upgrade single GCP stack GKE version
 
 on:
   workflow_dispatch:
     inputs:
+      kbc-stacks:
+        description: "KBC stack to upgrade"
+        required: true
+        type: string
       gke-minor-version:
         description: "GKE minor version to upgrade to"
         required: false
         type: string
-  # push:
 
 permissions:
   contents: write
@@ -18,7 +113,6 @@ env:
 
 jobs:
   upgrade-gke-version:
-    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -37,56 +131,56 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           if [ -n "${{ inputs.gke-minor-version }}" ]; then
-            echo "GKE_TOOL_ARGS=testenv.yaml -m ${{ inputs.gke-minor-version }}" >> $GITHUB_ENV
+            echo "GKE_TOOL_ARGS=${{ inputs.kbc-stacks }}/terraform/testenv.yaml -m ${{ inputs.gke-minor-version }}" >> $GITHUB_ENV
           else
-            echo "GKE_TOOL_ARGS=testenv.yaml" >> $GITHUB_ENV
+            echo "GKE_TOOL_ARGS=${{ inputs.kbc-stacks }}/terraform/testenv.yaml" >> $GITHUB_ENV
           fi
-      # - name: Deploy maintenance servers
-      #   run: |
-      #     sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/' testenv.yaml
-      #     git checkout -b michal-test-gke-upgrade-1
-      #     git branch --show-current
-      #     git commit -am "Upgrade GKE clusters #1 (Scale up maintenance server)"
-      #     git push origin --set-upstream michal-test-gke-upgrade-1
-      #     gh pr create --title "Upgrade GKE clusters #1 (Scale up maintenance server)" --body "Test PR" --base ${{ github.ref_name }} --head michal-test-gke-upgrade-1
-      # - name: Turn on maintenance mode
-      #   run: |
-      #     sed -i 's/MAINTENANCE_ENABLED: false/MAINTENANCE_ENABLED: true/' testenv.yaml
-      #     git checkout -b michal-test-gke-upgrade-2
-      #     git branch --show-current
-      #     git commit -am "Upgrade GKE clusters #2 (Turn on maintenance mode)"
-      #     git push origin --set-upstream michal-test-gke-upgrade-2
-      #     gh pr create --title "Upgrade GKE clusters #2 (Turn on maintenance mode)" --body "Test PR" --base michal-test-gke-upgrade-1 --head michal-test-gke-upgrade-2
+      - name: Deploy maintenance servers
+        run: |
+          sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/' ${{ inputs.kbc-stacks }}/terraform/testenv.yaml
+          git checkout -b michal-test-gke-upgrade-1
+          git branch --show-current
+          git commit -am "Upgrade GKE clusters #1 (Scale up maintenance server)"
+          git push origin --set-upstream michal-test-gke-upgrade-1
+          gh pr create --title "Upgrade GKE clusters #1 (Scale up maintenance server)" --body "Test PR" --base ${{ github.ref_name }} --head michal-test-gke-upgrade-1
+      - name: Turn on maintenance mode
+        run: |
+          sed -i 's/MAINTENANCE_ENABLED: false/MAINTENANCE_ENABLED: true/' ${{ inputs.kbc-stacks }}/terraform/testenv.yaml
+          git checkout -b michal-test-gke-upgrade-2
+          git branch --show-current
+          git commit -am "Upgrade GKE clusters #2 (Turn on maintenance mode)"
+          git push origin --set-upstream michal-test-gke-upgrade-2
+          gh pr create --title "Upgrade GKE clusters #2 (Turn on maintenance mode)" --body "Test PR" --base michal-test-gke-upgrade-1 --head michal-test-gke-upgrade-2
       - name: Update env.yaml (Version upgrade and active node pool switch)
         run: |
           git branch --show-current
           gke-upgrade-tool $GKE_TOOL_ARGS
-          # git checkout -b michal-test-gke-upgrade-3
-          # git branch --show-current
-          # git commit -am "Upgrade GKE clusters #3 (Upgrade GKE, switch active pool)"
-          # git push origin --set-upstream michal-test-gke-upgrade-3
-          # gh pr create --title "Upgrade GKE clusters #3 (Upgrade GKE, switch active pool)" --body "Test PR" --base michal-test-gke-upgrade-2 --head michal-test-gke-upgrade-3
+          git checkout -b michal-test-gke-upgrade-3
+          git branch --show-current
+          git commit -am "Upgrade GKE clusters #3 (Upgrade GKE, switch active pool)"
+          git push origin --set-upstream michal-test-gke-upgrade-3
+          gh pr create --title "Upgrade GKE clusters #3 (Upgrade GKE, switch active pool)" --body "Test PR" --base michal-test-gke-upgrade-2 --head michal-test-gke-upgrade-3
       - name: Update env.yaml (Non-active nodepool version upgrade)
         run: |
           git branch --show-current
           gke-upgrade-tool $GKE_TOOL_ARGS
-          # git checkout -b michal-test-gke-upgrade-4
-          # git commit -am "Upgrade GKE clusters #4 (Upgrade GKE on non-active pool)"
-          # git push origin --set-upstream michal-test-gke-upgrade-4
-          # gh pr create --title "Upgrade GKE clusters #4 (Upgrade GKE on non-active pool)" --body "Test PR" --base michal-test-gke-upgrade-3 --head michal-test-gke-upgrade-4
-      # - name: Turn off maintenance mode
-      #   run: |
-      #     sed -i 's/MAINTENANCE_ENABLED: true/MAINTENANCE_ENABLED: false/' testenv.yaml
-      #     git checkout -b michal-test-gke-upgrade-5
-      #     git branch --show-current
-      #     git commit -am "Upgrade GKE clusters #5 (Turn off maintenance mode)"
-      #     git push origin --set-upstream michal-test-gke-upgrade-5
-      #     gh pr create --title "Upgrade GKE clusters #5 (Turn off maintenance mode)" --body "Test PR" --base michal-test-gke-upgrade-4 --head michal-test-gke-upgrade-5
-      # - name: Disable maintenance servers
-      #   run: |
-      #     sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/' testenv.yaml
-      #     git checkout -b michal-test-gke-upgrade-6
-      #     git branch --show-current
-      #     git commit -am "Upgrade GKE clusters #6 (Scale down maintenance server)"
-      #     git push origin --set-upstream michal-test-gke-upgrade-6
-      #     gh pr create --title "Upgrade GKE clusters #6 (Scale down maintenance server)" --body "Test PR" --base michal-test-gke-upgrade-5 --head michal-test-gke-upgrade-6
+          git checkout -b michal-test-gke-upgrade-4
+          git commit -am "Upgrade GKE clusters #4 (Upgrade GKE on non-active pool)"
+          git push origin --set-upstream michal-test-gke-upgrade-4
+          gh pr create --title "Upgrade GKE clusters #4 (Upgrade GKE on non-active pool)" --body "Test PR" --base michal-test-gke-upgrade-3 --head michal-test-gke-upgrade-4
+      - name: Turn off maintenance mode
+        run: |
+          sed -i 's/MAINTENANCE_ENABLED: true/MAINTENANCE_ENABLED: false/' ${{ inputs.kbc-stacks }}/terraform/testenv.yaml
+          git checkout -b michal-test-gke-upgrade-5
+          git branch --show-current
+          git commit -am "Upgrade GKE clusters #5 (Turn off maintenance mode)"
+          git push origin --set-upstream michal-test-gke-upgrade-5
+          gh pr create --title "Upgrade GKE clusters #5 (Turn off maintenance mode)" --body "Test PR" --base michal-test-gke-upgrade-4 --head michal-test-gke-upgrade-5
+      - name: Disable maintenance servers
+        run: |
+          sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/' ${{ inputs.kbc-stacks }}/terraform/testenv.yaml
+          git checkout -b michal-test-gke-upgrade-6
+          git branch --show-current
+          git commit -am "Upgrade GKE clusters #6 (Scale down maintenance server)"
+          git push origin --set-upstream michal-test-gke-upgrade-6
+          gh pr create --title "Upgrade GKE clusters #6 (Scale down maintenance server)" --body "Test PR" --base michal-test-gke-upgrade-5 --head michal-test-gke-upgrade-6
