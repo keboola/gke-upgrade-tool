@@ -3,8 +3,16 @@ name: Check and upgrade all GCP stacks' GKE versions
 on:
   workflow_dispatch:
     inputs:
+      kbc-stacks:
+        description: "KBC stack to upgrade"
+        required: true
+        type: string
       gke-minor-version:
         description: "GKE minor version to upgrade to"
+        required: false
+        type: string
+      jira-ticket:
+        description: "Related JIRA ticket"
         required: false
         type: string
   push:
@@ -41,6 +49,14 @@ jobs:
           else
             echo "GKE_TOOL_ARGS=testenv.yaml" >> $GITHUB_ENV
           fi
+          if [ -n "${{ inputs.jira-ticket }}" ]; then
+            PR_BODY=$(
+            cat <<END_HEREDOC
+          Relates to [${{ inputs.jira-ticket }}](https://keboola.atlassian.net/browse/${{ inputs.jira-ticket }}).
+
+          END_HEREDOC
+          )
+          fi
       - name: Deploy maintenance servers
         run: |
           sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/' test-stack/terraform/testenv.yaml
@@ -50,14 +66,10 @@ jobs:
           git push origin --set-upstream michal-test-gke-upgrade-${{ github.run_id }}-${{ github.run_attempt }}
           PR_BODY=$(
           cat <<END_HEREDOC
-          Relates to [TEST-1234](https://example.com/TEST-1234)
-
-          - Nazdar nazdar
-
-          Prďáckej PR, meganajs. Patří to k ${{ github.run_id }}, jen zkoušim expansion.
+          $PR_BODY
+          Scaling up maintenance server to 1 instance on **${{ inputs.kbc-stacks }}** stack.
           END_HEREDOC
           )
-          echo "$PR_BODY"
           gh pr create --title "Upgrade GKE clusters #1 (Scale up maintenance server)" --body "$PR_BODY" --base ${{ github.ref_name }} --head michal-test-gke-upgrade-${{ github.run_id }}-${{ github.run_attempt }}
       # - name: Turn on maintenance mode
       #   run: |
