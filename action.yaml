@@ -1,5 +1,5 @@
-name: Check and upgrade the GKE version of a single GCP stack
-description: "Placeholder description 🙈"
+name: Check and upgrade the GKE version of a specified GCP stack
+description: "This action downloads the latest release of the GKE upgrade tool and runs it to upgrade the GKE version of a specified GCP stack."
 inputs:
   kbc-stack:
     description: "KBC stack to upgrade"
