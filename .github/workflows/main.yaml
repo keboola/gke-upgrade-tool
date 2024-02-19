@@ -60,7 +60,7 @@ jobs:
       - name: Update env.yaml (Version upgrade and active node pool switch)
         run: |
           git branch --show-current
-          gke-upgrade-tool "$GKE_TOOL_ARGS"
+          gke-upgrade-tool $GKE_TOOL_ARGS
           # git checkout -b michal-test-gke-upgrade-3
           # git branch --show-current
           # git commit -am "Upgrade GKE clusters #3 (Upgrade GKE, switch active pool)"
@@ -69,7 +69,7 @@ jobs:
       - name: Update env.yaml (Non-active nodepool version upgrade)
         run: |
           git branch --show-current
-          gke-upgrade-tool "$GKE_TOOL_ARGS"
+          gke-upgrade-tool $GKE_TOOL_ARGS
           # git checkout -b michal-test-gke-upgrade-4
           # git commit -am "Upgrade GKE clusters #4 (Upgrade GKE on non-active pool)"
           # git push origin --set-upstream michal-test-gke-upgrade-4
