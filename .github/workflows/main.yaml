@@ -48,17 +48,22 @@ jobs:
           git branch --show-current
           git commit -am "Upgrade GKE clusters #1 (Scale up maintenance server)"
           git push origin --set-upstream michal-test-gke-upgrade-${{ github.run_id }}-${{ github.run_attempt }}
-          PR_BODY=$(
-          cat <<'END_HEREDOC'
+          # VAR=$(
+          # cat <<'END_HEREDOC'
+          # abc'asdf"
+          # $(dont-execute-this)
+          # foo"bar"''
+          # END_HEREDOC
+          # )
+          read -r -d '' PR_BODY <<'EOF'
           Relates to [TEST-1234](https://example.com/TEST-1234)
 
           - Nazdar nazdar
 
           Prďáckej PR, meganajs. Patří to k ${{ inputs.gke-minor-version }}, jen zkoušim.
-          END_HEREDOC
-          )
+          EOF
           echo $PR_BODY
-          gh pr create --title "Upgrade GKE clusters #1 (Scale up maintenance server)" --body $PR_BODY --base ${{ github.ref_name }} --head michal-test-gke-upgrade-${{ github.run_id }}-${{ github.run_attempt }}
+          gh pr create --title "Upgrade GKE clusters #1 (Scale up maintenance server)" --body "$PR_BODY" --base ${{ github.ref_name }} --head michal-test-gke-upgrade-${{ github.run_id }}-${{ github.run_attempt }}
       # - name: Turn on maintenance mode
       #   run: |
       #     sed -i 's/MAINTENANCE_ENABLED: false/MAINTENANCE_ENABLED: true/' testenv.yaml
