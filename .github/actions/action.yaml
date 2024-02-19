@@ -56,7 +56,7 @@ runs:
         Scaling up maintenance server to 1 instance on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #1 (Scale up maintenance server)" --body "$PR_BODY" --base ${{ github.ref_name }} --head ${{ inputs.kbc-stack }}-gke-upgrade-1
+        gh pr create --title "Upgrade GKE cluster #1 (Scale up maintenance server)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ github.ref_name }} --head ${{ inputs.kbc-stack }}-gke-upgrade-1
     - name: Turn on maintenance mode
       shell: bash
       run: |
@@ -72,7 +72,7 @@ runs:
         Turning on maintenance mode for **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #2 (Turn on maintenance mode)" --body "$PR_BODY" --base ${{ inputs.kbc-stack }}-gke-upgrade-1 --head ${{ inputs.kbc-stack }}-gke-upgrade-2
+        gh pr create --title "Upgrade GKE cluster #2 (Turn on maintenance mode)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ inputs.kbc-stack }}-gke-upgrade-1 --head ${{ inputs.kbc-stack }}-gke-upgrade-2
     - name: Update env.yaml (Version upgrade and active node pool switch)
       shell: bash
       run: |
@@ -89,7 +89,7 @@ runs:
         Upgrading GKE version and switching active node pools on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #3 (Upgrade GKE, switch active pool)" --body "$PR_BODY" --base ${{ inputs.kbc-stack }}-gke-upgrade-2 --head ${{ inputs.kbc-stack }}-gke-upgrade-3
+        gh pr create --title "Upgrade GKE cluster #3 (Upgrade GKE, switch active pool)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ inputs.kbc-stack }}-gke-upgrade-2 --head ${{ inputs.kbc-stack }}-gke-upgrade-3
     - name: Update env.yaml (Non-active nodepool version upgrade)
       shell: bash
       run: |
@@ -105,7 +105,7 @@ runs:
         Upgrading GKE version on non-active node pools on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #4 (Upgrade GKE on non-active pool)" --body "$PR_BODY" --base ${{ inputs.kbc-stack }}-gke-upgrade-3 --head ${{ inputs.kbc-stack }}-gke-upgrade-4
+        gh pr create --title "Upgrade GKE cluster #4 (Upgrade GKE on non-active pool)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ inputs.kbc-stack }}-gke-upgrade-3 --head ${{ inputs.kbc-stack }}-gke-upgrade-4
     - name: Turn off maintenance mode
       shell: bash
       run: |
@@ -121,7 +121,7 @@ runs:
         Turning off maintenance mode on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #5 (Turn off maintenance mode)" --body "$PR_BODY" --base ${{ inputs.kbc-stack }}-gke-upgrade-4 --head ${{ inputs.kbc-stack }}-gke-upgrade-5
+        gh pr create --title "Upgrade GKE cluster #5 (Turn off maintenance mode)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ inputs.kbc-stack }}-gke-upgrade-4 --head ${{ inputs.kbc-stack }}-gke-upgrade-5
     - name: Disable maintenance servers
       shell: bash
       run: |
@@ -137,4 +137,4 @@ runs:
         Scaling maintenance server to 0 on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #6 (Scale down maintenance server)" --body "$PR_BODY" --base ${{ inputs.kbc-stack }}-gke-upgrade-5 --head ${{ inputs.kbc-stack }}-gke-upgrade-6
+        gh pr create --title "Upgrade GKE cluster #6 (Scale down maintenance server)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ inputs.kbc-stack }}-gke-upgrade-5 --head ${{ inputs.kbc-stack }}-gke-upgrade-6
