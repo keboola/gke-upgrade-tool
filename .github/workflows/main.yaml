@@ -123,15 +123,15 @@
 #           END_HEREDOC
 #           )
 #           gh pr create --title "Upgrade GKE cluster #6 (Scale down maintenance server)" --body "Test PR" --base ${{ matrix.kbc-stacks }}-gke-upgrade-5 --head ${{ matrix.kbc-stacks }}-gke-upgrade-6
-name: Check and upgrade the GKE version of a single GCP stack
+name: Check and upgrade the GKE version
 
 on:
   workflow_dispatch:
     inputs:
-      # kbc-stack:
-      #   description: "KBC stack to upgrade"
-      #   required: false
-      #   type: string
+      kbc-stack:
+        description: "KBC stack to upgrade, leave empty to upgrade all stacks"
+        required: false
+        type: string
       gke-minor-version:
         description: "GKE minor version to upgrade to"
         required: false
@@ -149,7 +149,8 @@ env:
   GH_TOKEN: ${{ github.token }}
 
 jobs:
-  upgrade-gke-version:
+  upgrade-all-gke-clusters:
+    if: ${{ github.event.inputs.kbc-stack == null }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -161,6 +162,18 @@ jobs:
       - uses: "keboola/gke-upgrade-tool@michal-github-action-test"
         with:
           kbc-stack: ${{ matrix.kbc-stacks }}
+          gke-minor-version: ${{ inputs.gke-minor-version }}
+          jira-ticket: ${{ inputs.jira-ticket }}
+
+  upgrade-single-gke-cluster:
+    if: github.event.inputs.kbc-stack
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - uses: "keboola/gke-upgrade-tool@michal-github-action-test"
+        with:
+          kbc-stack: ${{ inputs.kbc-stack }}
           gke-minor-version: ${{ inputs.gke-minor-version }}
           jira-ticket: ${{ inputs.jira-ticket }}
     # runs-on: ubuntu-latest
