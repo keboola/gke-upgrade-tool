@@ -29,9 +29,9 @@ runs:
         git config user.name github-actions
         git config user.email github-actions@github.com
         if [ -n "${{ inputs.gke-minor-version }}" ]; then
-          echo "GKE_TOOL_ARGS=${{ inputs.kbc-stacks }}/terraform/env.yaml -m ${{ inputs.gke-minor-version }}" >> $GITHUB_ENV
+          echo "GKE_TOOL_ARGS=${{ inputs.kbc-stack }}/terraform/env.yaml -m ${{ inputs.gke-minor-version }}" >> $GITHUB_ENV
         else
-          echo "GKE_TOOL_ARGS=${{ inputs.kbc-stacks }}/terraform/env.yaml" >> $GITHUB_ENV
+          echo "GKE_TOOL_ARGS=${{ inputs.kbc-stack }}/terraform/env.yaml" >> $GITHUB_ENV
         fi
         if [ -n "${{ inputs.jira-ticket }}" ]; then
           PR_BODY=$(
@@ -44,97 +44,97 @@ runs:
     - name: Deploy maintenance servers
       shell: bash
       run: |
-        sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/' ${{ inputs.kbc-stacks }}/terraform/env.yaml
-        git checkout -b ${{ inputs.kbc-stacks }}-gke-upgrade-1
+        sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/' ${{ inputs.kbc-stack }}/terraform/env.yaml
+        git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-1
         git branch --show-current
         git commit -am "Upgrade GKE cluster #1 (Scale up maintenance server)"
-        git push origin --set-upstream ${{ inputs.kbc-stacks }}-gke-upgrade-1
+        git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-1
         PR_BODY=$(
         cat <<END_HEREDOC
         $PR_BODY
 
-        Scaling up maintenance server to 1 instance on **${{ inputs.kbc-stacks }}** stack.
+        Scaling up maintenance server to 1 instance on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #1 (Scale up maintenance server)" --body "$PR_BODY" --base ${{ github.ref_name }} --head ${{ inputs.kbc-stacks }}-gke-upgrade-1
+        gh pr create --title "Upgrade GKE cluster #1 (Scale up maintenance server)" --body "$PR_BODY" --base ${{ github.ref_name }} --head ${{ inputs.kbc-stack }}-gke-upgrade-1
     - name: Turn on maintenance mode
       shell: bash
       run: |
-        sed -i 's/MAINTENANCE_ENABLED: false/MAINTENANCE_ENABLED: true/' ${{ inputs.kbc-stacks }}/terraform/env.yaml
-        git checkout -b ${{ inputs.kbc-stacks }}-gke-upgrade-2
+        sed -i 's/MAINTENANCE_ENABLED: false/MAINTENANCE_ENABLED: true/' ${{ inputs.kbc-stack }}/terraform/env.yaml
+        git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-2
         git branch --show-current
         git commit -am "Upgrade GKE cluster #2 (Turn on maintenance mode)"
-        git push origin --set-upstream ${{ inputs.kbc-stacks }}-gke-upgrade-2
+        git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-2
         PR_BODY=$(
         cat <<END_HEREDOC
         $PR_BODY
 
-        Turning on maintenance mode for **${{ inputs.kbc-stacks }}** stack.
+        Turning on maintenance mode for **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #2 (Turn on maintenance mode)" --body "$PR_BODY" --base ${{ inputs.kbc-stacks }}-gke-upgrade-1 --head ${{ inputs.kbc-stacks }}-gke-upgrade-2
+        gh pr create --title "Upgrade GKE cluster #2 (Turn on maintenance mode)" --body "$PR_BODY" --base ${{ inputs.kbc-stack }}-gke-upgrade-1 --head ${{ inputs.kbc-stack }}-gke-upgrade-2
     - name: Update env.yaml (Version upgrade and active node pool switch)
       shell: bash
       run: |
         git branch --show-current
         gke-upgrade-tool $GKE_TOOL_ARGS
-        git checkout -b ${{ inputs.kbc-stacks }}-gke-upgrade-3
+        git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-3
         git branch --show-current
         git commit -am "Upgrade GKE cluster #3 (Upgrade GKE, switch active pools)"
-        git push origin --set-upstream ${{ inputs.kbc-stacks }}-gke-upgrade-3
+        git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-3
         PR_BODY=$(
         cat <<END_HEREDOC
         $PR_BODY
 
-        Upgrading GKE version and switching active node pools on **${{ inputs.kbc-stacks }}** stack.
+        Upgrading GKE version and switching active node pools on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #3 (Upgrade GKE, switch active pool)" --body "$PR_BODY" --base ${{ inputs.kbc-stacks }}-gke-upgrade-2 --head ${{ inputs.kbc-stacks }}-gke-upgrade-3
+        gh pr create --title "Upgrade GKE cluster #3 (Upgrade GKE, switch active pool)" --body "$PR_BODY" --base ${{ inputs.kbc-stack }}-gke-upgrade-2 --head ${{ inputs.kbc-stack }}-gke-upgrade-3
     - name: Update env.yaml (Non-active nodepool version upgrade)
       shell: bash
       run: |
         git branch --show-current
         gke-upgrade-tool $GKE_TOOL_ARGS
-        git checkout -b ${{ inputs.kbc-stacks }}-gke-upgrade-4
+        git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-4
         git commit -am "Upgrade GKE cluster #4 (Upgrade GKE on non-active pools)"
-        git push origin --set-upstream ${{ inputs.kbc-stacks }}-gke-upgrade-4
+        git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-4
         PR_BODY=$(
         cat <<END_HEREDOC
         $PR_BODY
 
-        Upgrading GKE version on non-active node pools on **${{ inputs.kbc-stacks }}** stack.
+        Upgrading GKE version on non-active node pools on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #4 (Upgrade GKE on non-active pool)" --body "$PR_BODY" --base ${{ inputs.kbc-stacks }}-gke-upgrade-3 --head ${{ inputs.kbc-stacks }}-gke-upgrade-4
+        gh pr create --title "Upgrade GKE cluster #4 (Upgrade GKE on non-active pool)" --body "$PR_BODY" --base ${{ inputs.kbc-stack }}-gke-upgrade-3 --head ${{ inputs.kbc-stack }}-gke-upgrade-4
     - name: Turn off maintenance mode
       shell: bash
       run: |
-        sed -i 's/MAINTENANCE_ENABLED: true/MAINTENANCE_ENABLED: false/' ${{ inputs.kbc-stacks }}/terraform/env.yaml
-        git checkout -b ${{ inputs.kbc-stacks }}-gke-upgrade-5
+        sed -i 's/MAINTENANCE_ENABLED: true/MAINTENANCE_ENABLED: false/' ${{ inputs.kbc-stack }}/terraform/env.yaml
+        git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-5
         git branch --show-current
         git commit -am "Upgrade GKE cluster #5 (Turn off maintenance mode)"
-        git push origin --set-upstream ${{ inputs.kbc-stacks }}-gke-upgrade-5
+        git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-5
         PR_BODY=$(
         cat <<END_HEREDOC
         $PR_BODY
 
-        Turning off maintenance mode on **${{ inputs.kbc-stacks }}** stack.
+        Turning off maintenance mode on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #5 (Turn off maintenance mode)" --body "$PR_BODY" --base ${{ inputs.kbc-stacks }}-gke-upgrade-4 --head ${{ inputs.kbc-stacks }}-gke-upgrade-5
+        gh pr create --title "Upgrade GKE cluster #5 (Turn off maintenance mode)" --body "$PR_BODY" --base ${{ inputs.kbc-stack }}-gke-upgrade-4 --head ${{ inputs.kbc-stack }}-gke-upgrade-5
     - name: Disable maintenance servers
       shell: bash
       run: |
-        sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/' ${{ inputs.kbc-stacks }}/terraform/env.yaml
-        git checkout -b ${{ inputs.kbc-stacks }}-gke-upgrade-6
+        sed -i 's/MAINTENANCE_SERVER_INSTANCE_COUNT: 1/MAINTENANCE_SERVER_INSTANCE_COUNT: 0/' ${{ inputs.kbc-stack }}/terraform/env.yaml
+        git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-6
         git branch --show-current
         git commit -am "Upgrade GKE cluster #6 (Scale down maintenance server)"
-        git push origin --set-upstream ${{ inputs.kbc-stacks }}-gke-upgrade-6
+        git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-6
         PR_BODY=$(
         cat <<END_HEREDOC
         $PR_BODY
 
-        Scaling maintenance server to 0 on **${{ inputs.kbc-stacks }}** stack.
+        Scaling maintenance server to 0 on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #6 (Scale down maintenance server)" --body "$PR_BODY" --base ${{ inputs.kbc-stacks }}-gke-upgrade-5 --head ${{ inputs.kbc-stacks }}-gke-upgrade-6
+        gh pr create --title "Upgrade GKE cluster #6 (Scale down maintenance server)" --body "$PR_BODY" --base ${{ inputs.kbc-stack }}-gke-upgrade-5 --head ${{ inputs.kbc-stack }}-gke-upgrade-6
