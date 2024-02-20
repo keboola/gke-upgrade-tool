@@ -63,7 +63,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
-      - uses: "keboola/gke-upgrade-tool@michal-github-action"
+      - uses: "keboola/gke-upgrade-tool@main"
         with:
           kbc-stack: ${{ matrix.kbc-stack }}
           gke-minor-version: ${{ inputs.gke-minor-version }}
@@ -75,7 +75,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
-      - uses: "keboola/gke-upgrade-tool@michal-github-action"
+      - uses: "keboola/gke-upgrade-tool@main"
         with:
           kbc-stack: ${{ inputs.kbc-stack }}
           gke-minor-version: ${{ inputs.gke-minor-version }}
