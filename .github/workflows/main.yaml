@@ -8,7 +8,7 @@ on:
         required: false
         type: string
       gke-minor-version:
-        description: "GKE minor version to upgrade to"
+        description: "GKE minor version to upgrade to, leave empty to use minor version from env.yaml"
         required: false
         type: string
       jira-ticket:
@@ -25,6 +25,7 @@ env:
 
 jobs:
   find-gke-clusters:
+    if: ${{ github.event.inputs.kbc-stack == null }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.find-gke-clusters.outputs.matrix }}
@@ -44,44 +45,38 @@ jobs:
               gcp_stacks+=("$KBC_STACK")
             fi
           done
+          # Prepare the matrix for the upgrade-all-gke-clusters job
           json_array='[]'
           for stack in "${gcp_stacks[@]}"; do
-            json_array=$(echo $json_array | jq --arg stack "$stack" '. + [{"gcp-stack": $stack}]')
+            json_array=$(echo $json_array | jq --arg stack "$stack" '. + [{"kbc-stack": $stack}]')
           done
           json_object=$(echo $json_array | jq '{include: .}')
           echo $json_object
           echo "matrix=$(echo $json_object)" >> $GITHUB_OUTPUT
-  output-job:
-    runs-on: ubuntu-latest
+
+  upgrade-all-gke-clusters:
     needs: find-gke-clusters
+    runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJSON(needs.find-gke-clusters.outputs.matrix) }}
+    continue-on-error: true
     steps:
-      - run: echo ${{ matrix.gcp-stack }}
-  # upgrade-all-gke-clusters:
-  #   if: ${{ github.event.inputs.kbc-stack == null }}
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix:
-  #       kbc-stacks: [test-stack, test-2-stack]
-  #   continue-on-error: true
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4.1.1
-  #     - uses: "keboola/gke-upgrade-tool@michal-github-action-test"
-  #       with:
-  #         kbc-stack: ${{ matrix.kbc-stacks }}
-  #         gke-minor-version: ${{ inputs.gke-minor-version }}
-  #         jira-ticket: ${{ inputs.jira-ticket }}
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - uses: "keboola/gke-upgrade-tool@michal-github-action-test"
+        with:
+          kbc-stack: ${{ matrix.kbc-stack }}
+          gke-minor-version: ${{ inputs.gke-minor-version }}
+          jira-ticket: ${{ inputs.jira-ticket }}
 
-  # upgrade-single-gke-cluster:
-  #   if: github.event.inputs.kbc-stack
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4.1.1
-  #     - uses: "keboola/gke-upgrade-tool@michal-github-action-test"
-  #       with:
-  #         kbc-stack: ${{ inputs.kbc-stack }}
-  #         gke-minor-version: ${{ inputs.gke-minor-version }}
-  #         jira-ticket: ${{ inputs.jira-ticket }}
+  upgrade-single-gke-cluster:
+    if: github.event.inputs.kbc-stack
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - uses: "keboola/gke-upgrade-tool@michal-github-action-test"
+        with:
+          kbc-stack: ${{ inputs.kbc-stack }}
+          gke-minor-version: ${{ inputs.gke-minor-version }}
+          jira-ticket: ${{ inputs.jira-ticket }}
