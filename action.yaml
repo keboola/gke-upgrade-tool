@@ -1,0 +1,76 @@
+name: Check and upgrade the GKE version of a specified GCP stack
+description: "This action downloads the latest release of the GKE upgrade tool and runs it to upgrade the GKE version of a specified GCP stack."
+inputs:
+  kbc-stack:
+    description: "KBC stack to upgrade"
+    required: true
+  gke-minor-version:
+    description: "GKE minor version to upgrade to"
+    required: false
+  jira-ticket:
+    description: "Related JIRA ticket"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - uses: robinraju/release-downloader@v1.9
+      with:
+        repository: "keboola/gke-upgrade-tool"
+        latest: true
+    - name: Setup environment
+      shell: bash
+      run: |
+        pip install gke*.tar.gz
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        if [ -n "${{ inputs.gke-minor-version }}" ]; then
+          echo "GKE_TOOL_ARGS=${{ inputs.kbc-stack }}/terraform/env.yaml -m ${{ inputs.gke-minor-version }}" >> $GITHUB_ENV
+        else
+          echo "GKE_TOOL_ARGS=${{ inputs.kbc-stack }}/terraform/env.yaml" >> $GITHUB_ENV
+        fi
+        if [ -n "${{ inputs.jira-ticket }}" ]; then
+          PR_BODY=$(
+          cat <<END_HEREDOC
+        Relates to [${{ inputs.jira-ticket }}](https://keboola.atlassian.net/browse/${{ inputs.jira-ticket }}).
+        END_HEREDOC
+        )
+        echo "PR_BODY=$PR_BODY" >> $GITHUB_ENV
+        fi
+        if [ $(gh label list | grep -c ${{ inputs.kbc-stack }}) -eq 0 ]; then
+          gh label create ${{ inputs.kbc-stack }}
+        fi
+    - name: Update env.yaml (Version upgrade and active node pool switch)
+      shell: bash
+      run: |
+        gke-upgrade-tool $GKE_TOOL_ARGS
+        git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-1
+        git commit -am "Upgrade GKE cluster #1 (Upgrade GKE, switch active pools)"
+        git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-1
+        PR_BODY=$(
+        cat <<END_HEREDOC
+        $PR_BODY
+
+        Upgrading GKE version and switching active node pools on **${{ inputs.kbc-stack }}** stack.
+        END_HEREDOC
+        )
+        gh pr create --title "Upgrade GKE cluster #1 (Upgrade GKE, switch active pool)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ github.ref_name }} --head ${{ inputs.kbc-stack }}-gke-upgrade-1
+    - name: Update env.yaml (Non-active nodepool version upgrade)
+      shell: bash
+      run: |
+        gke-upgrade-tool $GKE_TOOL_ARGS
+        git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-2
+        git commit -am "Upgrade GKE cluster #2 (Upgrade GKE on non-active pools)"
+        git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-2
+        PR_BODY=$(
+        cat <<END_HEREDOC
+        $PR_BODY
+
+        Upgrading GKE version on non-active node pools on **${{ inputs.kbc-stack }}** stack.
+        END_HEREDOC
+        )
+        gh pr create --title "Upgrade GKE cluster #2 (Upgrade GKE on non-active pool)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ inputs.kbc-stack }}-gke-upgrade-1 --head ${{ inputs.kbc-stack }}-gke-upgrade-2
