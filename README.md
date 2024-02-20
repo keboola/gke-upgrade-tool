@@ -29,6 +29,8 @@ Or install the tool locally:
 
 ## Usage
 
+### Local
+
 ```bash
 gke-upgrade-tool /path/to/your/env.yaml
 
@@ -36,10 +38,61 @@ gke-upgrade-tool /path/to/your/env.yaml
 gke-upgrade-tool /path/to/your/env.yaml -m 1.26
 ```
 
-Or as a Docker container:
+### Docker
 
 ```bash
 docker run --rm -v /path/to/your/env.yaml:/env.yaml ghcr.io/keboola/gke-upgrade-tool:latest /env.yaml
+```
+
+### GitHub Actions
+
+Minimal usage example:
+
+```yaml
+- uses: "keboola/gke-upgrade-tool@main"
+  with:
+    kbc-stack: "dev-keboola-gcp-us-central1"
+```
+
+Full example:
+
+```yaml
+name: Check and upgrade the GKE version
+
+on:
+  workflow_dispatch:
+    inputs:
+      kbc-stack:
+        description: "KBC stack to upgrade, leave empty to upgrade all stacks"
+        required: true
+        type: string
+      gke-minor-version:
+        description: "GKE minor version to upgrade to, leave empty to use minor version from env.yaml"
+        required: false
+        type: string
+      jira-ticket:
+        description: "Related JIRA ticket"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  upgrade-gke-cluster:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - uses: "keboola/gke-upgrade-tool@main"
+        with:
+          kbc-stack: ${{ inputs.kbc-stack }}
+          gke-minor-version: ${{ inputs.gke-minor-version }}
+          jira-ticket: ${{ inputs.jira-ticket }}
 ```
 
 ## Example
