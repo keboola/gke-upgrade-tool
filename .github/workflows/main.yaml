@@ -24,30 +24,46 @@ env:
   GH_TOKEN: ${{ github.token }}
 
 jobs:
-  upgrade-all-gke-clusters:
-    if: ${{ github.event.inputs.kbc-stack == null }}
+  find-gke-clusters:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        kbc-stacks: [test-stack, test-2-stack]
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.1
-      - uses: "keboola/gke-upgrade-tool@michal-github-action-test"
-        with:
-          kbc-stack: ${{ matrix.kbc-stacks }}
-          gke-minor-version: ${{ inputs.gke-minor-version }}
-          jira-ticket: ${{ inputs.jira-ticket }}
+      - name: Find GKE clusters
+        run: |
+          # Find all env.yaml files in the repository
+          KBC_STACKS=$(find . -name "env.yaml" | grep -oP ".*(?=/terraform/env.yaml)" | sed 's|^\./||')
+          # Find 'CLOUD_PROVIDER' in each env.yaml file and return the stack name if it's 'gcp'
+          for KBC_STACK in $KBC_STACKS; do
+            CLOUD_PROVIDER=$(grep -oP "(?<=CLOUD_PROVIDER: \").*(?=\")" $KBC_STACK/terraform/env.yaml)
+            if [ "$CLOUD_PROVIDER" == "gcp" ]; then
+              echo $KBC_STACK
+            fi
+          done
+  # upgrade-all-gke-clusters:
+  #   if: ${{ github.event.inputs.kbc-stack == null }}
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       kbc-stacks: [test-stack, test-2-stack]
+  #   continue-on-error: true
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4.1.1
+  #     - uses: "keboola/gke-upgrade-tool@michal-github-action-test"
+  #       with:
+  #         kbc-stack: ${{ matrix.kbc-stacks }}
+  #         gke-minor-version: ${{ inputs.gke-minor-version }}
+  #         jira-ticket: ${{ inputs.jira-ticket }}
 
-  upgrade-single-gke-cluster:
-    if: github.event.inputs.kbc-stack
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - uses: "keboola/gke-upgrade-tool@michal-github-action-test"
-        with:
-          kbc-stack: ${{ inputs.kbc-stack }}
-          gke-minor-version: ${{ inputs.gke-minor-version }}
-          jira-ticket: ${{ inputs.jira-ticket }}
+  # upgrade-single-gke-cluster:
+  #   if: github.event.inputs.kbc-stack
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4.1.1
+  #     - uses: "keboola/gke-upgrade-tool@michal-github-action-test"
+  #       with:
+  #         kbc-stack: ${{ inputs.kbc-stack }}
+  #         gke-minor-version: ${{ inputs.gke-minor-version }}
+  #         jira-ticket: ${{ inputs.jira-ticket }}
