@@ -49,7 +49,7 @@ runs:
       run: |
         gke-upgrade-tool $GKE_TOOL_ARGS
         git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-1
-        git commit -am "Upgrade GKE cluster #1 (Upgrade GKE, switch active pools)"
+        git commit -am "Upgrade GKE on ${{ inputs.kbc-stack }} #1 (Upgrade GKE, switch active pools)"
         git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-1
         PR_BODY=$(
         cat <<END_HEREDOC
@@ -58,13 +58,13 @@ runs:
         Upgrading GKE version and switching active node pools on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #1 (Upgrade GKE, switch active pool)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ github.ref_name }} --head ${{ inputs.kbc-stack }}-gke-upgrade-1
+        gh pr create --title "Upgrade GKE on ${{ inputs.kbc-stack }} #1 (Upgrade GKE, switch active pool)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ github.ref_name }} --head ${{ inputs.kbc-stack }}-gke-upgrade-1
     - name: Update env.yaml (Non-active nodepool version upgrade)
       shell: bash
       run: |
         gke-upgrade-tool $GKE_TOOL_ARGS
         git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-2
-        git commit -am "Upgrade GKE cluster #2 (Upgrade GKE on non-active pools)"
+        git commit -am "Upgrade GKE on ${{ inputs.kbc-stack }} #2 (Upgrade GKE on non-active pools)"
         git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-2
         PR_BODY=$(
         cat <<END_HEREDOC
@@ -73,4 +73,4 @@ runs:
         Upgrading GKE version on non-active node pools on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-        gh pr create --title "Upgrade GKE cluster #2 (Upgrade GKE on non-active pool)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ inputs.kbc-stack }}-gke-upgrade-1 --head ${{ inputs.kbc-stack }}-gke-upgrade-2
+        gh pr create --title "Upgrade GKE on ${{ inputs.kbc-stack }} #2 (Upgrade GKE on non-active pool)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ inputs.kbc-stack }}-gke-upgrade-1 --head ${{ inputs.kbc-stack }}-gke-upgrade-2
