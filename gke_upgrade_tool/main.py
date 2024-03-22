@@ -26,6 +26,7 @@ GKE_RELEASE_NOTES = "https://cloud.google.com/feeds/gke-no-channel-release-notes
 parser = argparse.ArgumentParser()
 parser.add_argument("env_file", help="Path to env.yaml file")
 parser.add_argument("-m", "--minor", help="GKE minor version to search for")
+parser.add_argument("-i", "--image", help="Use specific image version for GKE upgrade")
 args = parser.parse_args()
 
 yaml = ruamel.yaml.YAML()
@@ -139,6 +140,8 @@ def main():
 
     if args.minor:
         new_gke_version = latest_gke_version(args.minor)
+    elif args.image:
+        new_gke_version = args.image
     else:
         new_gke_version = latest_gke_version(current_gke_version())
 
