@@ -7,8 +7,15 @@ inputs:
   gke-minor-version:
     description: "GKE minor version to upgrade to"
     required: false
+  use-latest:
+    description: "Use the latest GKE version"
+    required: false
+    default: "true"
   jira-ticket:
     description: "Related JIRA ticket"
+    required: false
+  specific-version:
+    description: "Specific GKE version to upgrade to"
     required: false
 
 runs:
@@ -28,11 +35,17 @@ runs:
         pip install gke*.tar.gz
         git config user.name github-actions
         git config user.email github-actions@github.com
+        GKE_TOOL_ARGS=${{ inputs.kbc-stack }}/terraform/env.yaml
         if [ -n "${{ inputs.gke-minor-version }}" ]; then
-          echo "GKE_TOOL_ARGS=${{ inputs.kbc-stack }}/terraform/env.yaml -m ${{ inputs.gke-minor-version }}" >> $GITHUB_ENV
-        else
-          echo "GKE_TOOL_ARGS=${{ inputs.kbc-stack }}/terraform/env.yaml" >> $GITHUB_ENV
+          GKE_TOOL_ARGS+=" -m ${{ inputs.gke-minor-version }}"
         fi
+        if [ "${{ inputs.use-latest }}" == "true" ]; then
+          GKE_TOOL_ARGS+=" -l"
+        fi
+        if [ -n "${{ inputs.specific-version }}" ]; then
+          GKE_TOOL_ARGS+=" -i ${{ inputs.specific-version }}"
+        fi
+        echo "GKE_TOOL_ARGS=${GKE_TOOL_ARGS}" >> $GITHUB_ENV
         if [ -n "${{ inputs.jira-ticket }}" ]; then
           PR_BODY=$(
           cat <<END_HEREDOC
