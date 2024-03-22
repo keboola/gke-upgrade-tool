@@ -1,5 +1,16 @@
 # GKE upgrade tool
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Local](#local)
+  - [Docker](#docker)
+  - [GitHub Actions](#github-actions)
+- [Example](#example)
+
 ## Overview
 
 This tool is designed to help upgrading GKE versions in KBC stacks `env.yaml` files. It handles switching between active node pools and upgrading them.
@@ -8,10 +19,18 @@ What it does is:
 
 - Fetches latest GKE versions from their *no-channel* [feed](https://cloud.google.com/kubernetes-engine/docs/release-notes-nochannel)
 - Checks for the GKE version in the `env.yaml` file
-- Searches for the latest build and/or patch version of a specified minor version
+- Searches for the second to latest build and/or patch version of a specified minor version
 - Switches between A/B node pools
 - Upgrades the newly activated node pool
 - If run again, upgrades the previously active node pool as well
+
+You can alter this behavior with the following options:
+
+- `--minor` to specify a minor version to upgrade to, e.g. `1.26`
+- `--latest` to upgrade to the latest available version, instead of the second to latest
+- `--image` to upgrade to a specific version, e.g. `1.25.16-gke.1041000`
+
+Please note, that `--minor/--latest` and `--image` are mutually exclusive.
 
 ## Requirements
 
@@ -36,6 +55,12 @@ gke-upgrade-tool /path/to/your/env.yaml
 
 # Or specify minor version to upgrade to
 gke-upgrade-tool /path/to/your/env.yaml -m 1.26
+
+# Use the latest GKE version of the specified minor version
+gke-upgrade-tool /path/to/your/env.yaml -m 1.26 -l
+
+# Upgrade to a specific GKE version
+gke-upgrade-tool /path/to/your/env.yaml -i 1.25.16-gke.1041000
 ```
 
 ### Docker
@@ -70,6 +95,14 @@ on:
         description: "GKE minor version to upgrade to, leave empty to use minor version from env.yaml"
         required: false
         type: string
+      use-latest:
+        description: "Use the latest GKE version"
+        required: false
+        type: boolean
+      specific-version:
+        description: "Specific GKE version to upgrade to"
+        required: false
+        type: string
       jira-ticket:
         description: "Related JIRA ticket"
         required: false
@@ -92,6 +125,8 @@ jobs:
         with:
           kbc-stack: ${{ inputs.kbc-stack }}
           gke-minor-version: ${{ inputs.gke-minor-version }}
+          use-latest: ${{ inputs.use-latest }}
+          specific-version: ${{ inputs.specific-version }}
           jira-ticket: ${{ inputs.jira-ticket }}
 ```
 
