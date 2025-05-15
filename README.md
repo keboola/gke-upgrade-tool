@@ -23,12 +23,15 @@ What it does is:
 - Switches between A/B node pools
 - Upgrades the newly activated node pool
 - If run again, upgrades the previously active node pool as well
+- Upgrades the control plane and non-active nodepools to the new version (by default, does NOT switch active/non-active nodepools)
+- You can switch active/non-active nodepools separately using the `--switch-active-only` flag
 
 You can alter this behavior with the following options:
 
 - `--minor` to specify a minor version to upgrade to, e.g. `1.26`
 - `--latest` to upgrade to the latest available version, instead of the second to latest
 - `--image` to upgrade to a specific version, e.g. `1.25.16-gke.1041000`
+- `--switch-active-only` to only switch all *_NODE_POOL_ACTIVE values between a and b, without touching any Kubernetes version fields (see below)
 
 Please note, that `--minor/--latest` and `--image` are mutually exclusive.
 
@@ -61,6 +64,9 @@ gke-upgrade-tool /path/to/your/env.yaml -m 1.26 -l
 
 # Upgrade to a specific GKE version
 gke-upgrade-tool /path/to/your/env.yaml -i 1.25.16-gke.1041000
+
+# Switch active/non-active nodepools only (does not touch Kubernetes version fields)
+gke-upgrade-tool /path/to/your/env.yaml --switch-active-only
 ```
 
 ### Docker
@@ -136,13 +142,22 @@ jobs:
 $ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml
 🔎 Highest GKE version in file is: 1.25.14-gke.10700
 🎉 Latest GKE version for minor version 1.25 is: 1.25.16-gke.1041000
-🔄 Active pool switched to: B
 ✅ KUBERNETES_VERSION set to 1.25.16-gke.1041000.
 ✅ MAIN_NODE_POOL_B_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
 ✅ ECK_NODE_POOL_B_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
 ✅ JOB_QUEUE_JOBS_NODE_POOL_B_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
 ✅ JOB_QUEUE_JOBS_LARGE_NODE_POOL_B_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
 ✅ SANDBOX_NODE_POOL_B_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
+
+# Switch active/non-active nodepools only
+$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml --switch-active-only
+🔄 MAIN_NODE_POOL_ACTIVE: a -> b
+🔄 ECK_NODE_POOL_ACTIVE: a -> b
+🔄 JOB_QUEUE_JOBS_NODE_POOL_ACTIVE: a -> b
+🔄 JOB_QUEUE_JOBS_LARGE_NODE_POOL_ACTIVE: a -> b
+🔄 SANDBOX_NODE_POOL_ACTIVE: a -> b
+🔄 All *_NODE_POOL_ACTIVE values switched.
+✅ Switched active nodepools only. Exiting.
 
 # Running again...
 $ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml

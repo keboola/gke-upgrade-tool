@@ -36,6 +36,11 @@ parser.add_argument("-m", "--minor", help="GKE minor version to search for")
 parser.add_argument(
     "-l", "--latest", action="store_true", help="Use latest image for specified version"
 )
+parser.add_argument(
+    "--switch-active-only",
+    action="store_true",
+    help="Switch active nodepools only, do not change any Kubernetes version fields",
+)
 
 args = parser.parse_args()
 
@@ -120,43 +125,53 @@ def current_gke_version():
     return current_gke_minor
 
 
-def switch_active_resources(gke_version):
-    """Switches A/B Kubernetes node pools in env.yaml file"""
-
-    if yaml_content["KUBERNETES_VERSION"] != gke_version:
-        for key, value in yaml_content.items():
-            if "POOL_ACTIVE" in key:
-                if value == "a":
-                    yaml_content[key] = "b"
-                    active_pool = "b"
-                elif value == "b":
-                    yaml_content[key] = "a"
-                    active_pool = "a"
-        print(f"🔄 Active pool switched to: {active_pool.upper()}")
-    else:
-        active_pool = "b" if yaml_content["MAIN_NODE_POOL_ACTIVE"] == "a" else "a"
-        print(
-            "👉 File has been already updated to latest GKE version. "
-            "Not switching active node pool. Only updating non-active pool."
-        )
-
-    return active_pool
+def get_non_active_pool_keys():
+    """Returns a dict mapping nodepool label (e.g. MAIN, ECK) to the non-active pool ('a' or 'b')."""
+    non_active = {}
+    for key, value in yaml_content.items():
+        if key.endswith("_NODE_POOL_ACTIVE"):
+            label = key.replace("_NODE_POOL_ACTIVE", "")
+            non_active[label] = "b" if value == "a" else "a"
+    return non_active
 
 
-def update_gke_version(pool_to_update, gke_version):
-    """Updates GKE version in env.yaml file"""
+def update_gke_version_only(new_gke_version):
+    """Updates control plane and non-active nodepools to the new GKE version."""
+    # Update control plane
+    yaml_content["KUBERNETES_VERSION"] = new_gke_version
+    print(f"✅ KUBERNETES_VERSION set to {new_gke_version}.")
+    # Update non-active nodepools
+    non_active = get_non_active_pool_keys()
+    for label, pool in non_active.items():
+        key = f"{label}_NODE_POOL_{pool.upper()}_KUBERNETES_VERSION"
+        if key in yaml_content:
+            yaml_content[key] = new_gke_version
+            print(f"✅ {key} set to {new_gke_version}.")
 
-    for key in yaml_content:
-        if (
-            key == "KUBERNETES_VERSION"
-            or f"NODE_POOL_{pool_to_update.upper()}_KUBERNETES_VERSION" in key
-        ):
-            yaml_content[key] = gke_version
-            print(f"✅ {key} set to {gke_version}.")
+
+def switch_only_active_nodepools():
+    """Switches only the *_NODE_POOL_ACTIVE values between 'a' and 'b' in env.yaml file, and prints what is switching to what."""
+    for key, value in yaml_content.items():
+        if key.endswith("_NODE_POOL_ACTIVE"):
+            old_value = value
+            if value == "a":
+                yaml_content[key] = "b"
+            elif value == "b":
+                yaml_content[key] = "a"
+            new_value = yaml_content[key]
+            print(f"🔄 {key}: {old_value} -> {new_value}")
+    print("🔄 All *_NODE_POOL_ACTIVE values switched.")
 
 
 def main():
     """Main function"""
+
+    if args.switch_active_only:
+        switch_only_active_nodepools()
+        with open(args.env_file, "w", encoding="utf-8") as new_file:
+            yaml.dump(yaml_content, new_file)
+        print("✅ Switched active nodepools only. Exiting.")
+        return
 
     if args.image and (args.minor or args.latest):
         parser.error("--image cannot be used together with --minor or --latest")
@@ -168,13 +183,8 @@ def main():
     else:
         new_gke_version = latest_gke_version(current_gke_version(), args.latest)
 
-    if (
-        new_gke_version not in yaml_content["MAIN_NODE_POOL_A_KUBERNETES_VERSION"]
-        or new_gke_version not in yaml_content["MAIN_NODE_POOL_B_KUBERNETES_VERSION"]
-    ):
-        update_gke_version(switch_active_resources(new_gke_version), new_gke_version)
-    else:
-        print("🫡  File already using latest GKE version.")
+    # Only update control plane and non-active nodepools, do NOT switch active pools
+    update_gke_version_only(new_gke_version)
 
     with open(args.env_file, "w", encoding="utf-8") as new_file:
         yaml.dump(yaml_content, new_file)
