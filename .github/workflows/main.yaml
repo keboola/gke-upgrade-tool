@@ -11,6 +11,14 @@ on:
         description: "GKE minor version to upgrade to, leave empty to use minor version from env.yaml"
         required: false
         type: string
+      use-latest:
+        description: "Use the latest GKE version"
+        required: false
+        type: boolean
+      specific-version:
+        description: "Specific GKE version to upgrade to"
+        required: false
+        type: string
       jira-ticket:
         description: "Related JIRA ticket"
         required: false
@@ -62,11 +70,13 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - uses: "keboola/gke-upgrade-tool@michal-verbose-commits"
+        uses: actions/checkout@v4
+      - uses: "keboola/gke-upgrade-tool@fix-release-downloading-gha"
         with:
           kbc-stack: ${{ matrix.kbc-stack }}
           gke-minor-version: ${{ inputs.gke-minor-version }}
+          use-latest: ${{ inputs.use-latest }}
+          specific-version: ${{ inputs.specific-version }}
           jira-ticket: ${{ inputs.jira-ticket }}
 
   upgrade-single-gke-cluster:
@@ -74,9 +84,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - uses: "keboola/gke-upgrade-tool@michal-verbose-commits"
+        uses: actions/checkout@v4
+      - uses: "keboola/gke-upgrade-tool@fix-release-downloading-gha"
         with:
           kbc-stack: ${{ inputs.kbc-stack }}
           gke-minor-version: ${{ inputs.gke-minor-version }}
+          use-latest: ${{ inputs.use-latest }}
+          specific-version: ${{ inputs.specific-version }}
           jira-ticket: ${{ inputs.jira-ticket }}
