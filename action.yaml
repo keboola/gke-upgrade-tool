@@ -21,11 +21,11 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up Python 3.12
+    - name: Set up Python 3.13
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
-    - uses: robinraju/release-downloader@v1.9
+        python-version: "3.13"
+    - uses: robinraju/release-downloader@v1
       with:
         repository: "keboola/gke-upgrade-tool"
         latest: true
@@ -57,45 +57,63 @@ runs:
         if [ $(gh label list | grep -c ${{ inputs.kbc-stack }}) -eq 0 ]; then
           gh label create ${{ inputs.kbc-stack }}
         fi
-    - name: Update env.yaml (Version upgrade and active node pool switch)
+    - name: Update env.yaml (Step 1 - Upgrade control plane and non-active nodepools)
       shell: bash
       run: |
         gke-upgrade-tool $GKE_TOOL_ARGS
-        # If there is git diff, proceed, otherwise exit
         if [ -z "$(git diff)" ]; then
           echo "No changes in the env.yaml file. Exiting."
           exit 0
         else
           git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-1
-          git commit -am "Upgrade GKE on ${{ inputs.kbc-stack }} #1 (Upgrade GKE, switch active pools)"
+          git commit -am "Upgrade GKE on ${{ inputs.kbc-stack }} #1 (Upgrade control plane and non-active nodepools)"
           git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-1
           PR_BODY=$(
           cat <<END_HEREDOC
         $PR_BODY
 
-        Upgrading GKE version and switching active node pools on **${{ inputs.kbc-stack }}** stack.
+        Step 1: Upgrading control plane and non-active nodepools on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-          gh pr create --title "Upgrade GKE on ${{ inputs.kbc-stack }} #1 (Upgrade GKE, switch active pool)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ github.ref_name }} --head ${{ inputs.kbc-stack }}-gke-upgrade-1
+          gh pr create --title "Upgrade GKE on ${{ inputs.kbc-stack }} #1 (Upgrade control plane and non-active nodepools)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ github.ref_name }} --head ${{ inputs.kbc-stack }}-gke-upgrade-1
         fi
-    - name: Update env.yaml (Non-active nodepool version upgrade)
+    - name: Update env.yaml (Step 2 - Switch active/non-active nodepools)
       shell: bash
       run: |
-        # If git branch "${{ inputs.kbc-stack }}-gke-upgrade-1" exists, proceed, otherwise exit
         if [ -z "$(git branch --list ${{ inputs.kbc-stack }}-gke-upgrade-1)" ]; then
           echo "Branch ${{ inputs.kbc-stack }}-gke-upgrade-1 does not exist. Exiting."
           exit 0
         else
-          gke-upgrade-tool $GKE_TOOL_ARGS
+          gke-upgrade-tool $GKE_TOOL_ARGS --switch-active-only
           git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-2
-          git commit -am "Upgrade GKE on ${{ inputs.kbc-stack }} #2 (Upgrade GKE on non-active pools)"
+          git commit -am "Upgrade GKE on ${{ inputs.kbc-stack }} #2 (Switch active/non-active nodepools)"
           git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-2
           PR_BODY=$(
           cat <<END_HEREDOC
         $PR_BODY
 
-        Upgrading GKE version on non-active node pools on **${{ inputs.kbc-stack }}** stack.
+        Step 2: Switching active/non-active nodepools on **${{ inputs.kbc-stack }}** stack.
         END_HEREDOC
         )
-          gh pr create --title "Upgrade GKE on ${{ inputs.kbc-stack }} #2 (Upgrade GKE on non-active pool)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ inputs.kbc-stack }}-gke-upgrade-1 --head ${{ inputs.kbc-stack }}-gke-upgrade-2
+          gh pr create --title "Upgrade GKE on ${{ inputs.kbc-stack }} #2 (Switch active/non-active nodepools)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ inputs.kbc-stack }}-gke-upgrade-1 --head ${{ inputs.kbc-stack }}-gke-upgrade-2
+        fi
+    - name: Update env.yaml (Step 3 - Upgrade now non-active nodepools)
+      shell: bash
+      run: |
+        if [ -z "$(git branch --list ${{ inputs.kbc-stack }}-gke-upgrade-2)" ]; then
+          echo "Branch ${{ inputs.kbc-stack }}-gke-upgrade-2 does not exist. Exiting."
+          exit 0
+        else
+          gke-upgrade-tool $GKE_TOOL_ARGS
+          git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-3
+          git commit -am "Upgrade GKE on ${{ inputs.kbc-stack }} #3 (Upgrade now non-active nodepools)"
+          git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-3
+          PR_BODY=$(
+          cat <<END_HEREDOC
+        $PR_BODY
+
+        Step 3: Upgrading now non-active nodepools on **${{ inputs.kbc-stack }}** stack.
+        END_HEREDOC
+        )
+          gh pr create --title "Upgrade GKE on ${{ inputs.kbc-stack }} #3 (Upgrade now non-active nodepools)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ inputs.kbc-stack }}-gke-upgrade-2 --head ${{ inputs.kbc-stack }}-gke-upgrade-3
         fi
