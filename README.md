@@ -13,7 +13,7 @@
 
 ## Overview
 
-This tool is designed to help upgrading GKE versions in KBC stacks `env.yaml` files. It handles switching between active node pools and upgrading them.
+This tool is designed to help upgrading GKE versions in KBC stacks `env.yaml` files. It handles safe, stepwise upgrades of the control plane and nodepools, with clear, colorized, human-friendly CLI output. It is idempotent and only updates what is needed.
 
 What it does is:
 
@@ -25,6 +25,8 @@ What it does is:
 - If run again, upgrades the previously active node pool as well
 - Upgrades the control plane and non-active nodepools to the new version (by default, does NOT switch active/non-active nodepools)
 - You can switch active/non-active nodepools separately using the `--switch-active-only` flag
+
+The tool provides colorized, sectioned output for all actions and statuses, making it easy to see what was updated, what was already current, and what needs attention.
 
 You can alter this behavior with the following options:
 
@@ -139,18 +141,33 @@ jobs:
 ## Example
 
 ```console
-$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml
-🔎 Highest GKE version in file is: 1.25.14-gke.10700
-🎉 Latest GKE version for minor version 1.25 is: 1.25.16-gke.1041000
-✅ KUBERNETES_VERSION set to 1.25.16-gke.1041000.
-✅ MAIN_NODE_POOL_B_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
-✅ ECK_NODE_POOL_B_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
-✅ JOB_QUEUE_JOBS_NODE_POOL_B_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
-✅ JOB_QUEUE_JOBS_LARGE_NODE_POOL_B_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
-✅ SANDBOX_NODE_POOL_B_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
+$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml -m 1.28
+
+🔎 Highest GKE version in file is: 1.27.16-gke.2703000
+🎉 Second to latest GKE version for minor version 1.28 is: 1.28.15-gke.2169000
+
+=== GKE Control Plane ===
+✅ Upgraded to 1.28.15-gke.2169000
+
+=== Nodepools ===
+MAIN:
+  • Active: a (version: 1.27.16-gke.2703000)
+  • Non-active: b (version: 1.27.16-gke.2703000)
+  ✅ Upgraded non-active pool 'b' to 1.28.15-gke.2169000
+  MAIN_NODE_POOL_A_KUBERNETES_VERSION (active) is at 1.27.16-gke.2703000
+ECK:
+  • Active: a (version: 1.27.16-gke.2703000)
+  • Non-active: b (version: 1.27.16-gke.2703000)
+  ✅ Upgraded non-active pool 'b' to 1.28.15-gke.2169000
+  ECK_NODE_POOL_A_KUBERNETES_VERSION (active) is at 1.27.16-gke.2703000
+...
+
+✔️ Control plane and non-active nodepools upgraded.
 
 # Switch active/non-active nodepools only
 $ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml --switch-active-only
+
+=== Switching Active Nodepools ===
 🔄 MAIN_NODE_POOL_ACTIVE: a -> b
 🔄 ECK_NODE_POOL_ACTIVE: a -> b
 🔄 JOB_QUEUE_JOBS_NODE_POOL_ACTIVE: a -> b
@@ -160,20 +177,21 @@ $ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml --switch-activ
 ✅ Switched active nodepools only. Exiting.
 
 # Running again...
-$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml
-🔎 Highest GKE version in file is: 1.25.16-gke.1041000
-🎉 Latest GKE version for minor version 1.25 is: 1.25.16-gke.1041000
-👉 File has been already updated to latest GKE version. Not switching active node pool. Only updating non-active pool.
-✅ KUBERNETES_VERSION set to 1.25.16-gke.1041000.
-✅ MAIN_NODE_POOL_A_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
-✅ ECK_NODE_POOL_A_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
-✅ JOB_QUEUE_JOBS_NODE_POOL_A_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
-✅ JOB_QUEUE_JOBS_LARGE_NODE_POOL_A_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
-✅ SANDBOX_NODE_POOL_A_KUBERNETES_VERSION set to 1.25.16-gke.1041000.
+$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml -m 1.28
 
-# Nothing to change...
-$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml
-🔎 Highest GKE version in file is: 1.25.16-gke.1041000
-🎉 Latest GKE version for minor version 1.25 is: 1.25.16-gke.1041000
-🫡 File already using latest GKE version.
+🔎 Highest GKE version in file is: 1.28.15-gke.2169000
+🎉 Second to latest GKE version for minor version 1.28 is: 1.28.15-gke.2169000
+
+=== GKE Control Plane ===
+🫡 Already at 1.28.15-gke.2169000
+
+=== Nodepools ===
+MAIN:
+  • Active: b (version: 1.28.15-gke.2169000)
+  • Non-active: a (version: 1.28.15-gke.2169000)
+  🫡 Non-active pool 'a' already at 1.28.15-gke.2169000
+  MAIN_NODE_POOL_B_KUBERNETES_VERSION (active) is at 1.28.15-gke.2169000
+...
+
+🫡 Everything is already up-to-date. Nothing to do.
 ```
