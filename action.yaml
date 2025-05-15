@@ -29,6 +29,7 @@ runs:
       with:
         repository: "keboola/gke-upgrade-tool"
         latest: true
+        tarBall: true
     - name: Setup environment
       shell: bash
       run: |
