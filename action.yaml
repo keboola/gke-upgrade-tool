@@ -51,8 +51,8 @@ runs:
     - name: Step 1 - Upgrade control plane and non-active nodepools
       shell: bash
       run: |
-        docker run --rm -v "${{ github.workspace }}:/workspace" -w /workspace \
-          ghcr.io/keboola/gke-upgrade-tool:v0.1.0 $GKE_TOOL_ARGS
+        docker run --rm --user "$(id -u):$(id -g)" -v "${{ github.workspace }}:/workspace" -w /workspace \
+          ghcr.io/keboola/gke-upgrade-tool:v0.1.1 $GKE_TOOL_ARGS
         if [ -z "$(git diff)" ]; then
           echo "No changes in infrastructure.tfvars. Exiting."
           exit 0
