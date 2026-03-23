@@ -1,93 +1,123 @@
 # GKE upgrade tool
 
+> Automates GKE version upgrades in KBC stack `infrastructure.tfvars` files using a blue-green (A/B) node pool strategy.
+
 ## Table of Contents
 
 - [Overview](#overview)
+- [How the A/B upgrade works](#how-the-ab-upgrade-works)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#usage)
   - [Local](#local)
   - [Docker](#docker)
   - [GitHub Actions](#github-actions)
-- [Example](#example)
+- [CLI reference](#cli-reference)
+- [Example output](#example-output)
+- [Recovery](#recovery)
 
 ## Overview
 
-This tool is designed to help upgrading GKE versions in KBC stacks `env.yaml` files. It handles safe, stepwise upgrades of the control plane and nodepools, with clear, colorized, human-friendly CLI output. It is idempotent and only updates what is needed.
+This tool dynamically discovers all node pool types from the config file — no hardcoded pool names. New pool types are picked up automatically.
 
-What it does is:
+What it does:
 
-- Fetches latest GKE versions from their *no-channel* [feed](https://cloud.google.com/kubernetes-engine/docs/release-notes-nochannel)
-- Checks for the GKE version in the `env.yaml` file
-- Searches for the second to latest build and/or patch version of a specified minor version
-- Switches between A/B node pools
-- Upgrades the newly activated node pool
-- If run again, upgrades the previously active node pool as well
-- Upgrades the control plane and non-active nodepools to the new version (by default, does NOT switch active/non-active nodepools)
-- You can switch active/non-active nodepools separately using the `--switch-active-only` flag
+- Fetches latest GKE versions from the *no-channel* [release feed](https://cloud.google.com/kubernetes-engine/docs/release-notes-nochannel)
+- Upgrades the control plane and non-active nodepools to the target version
+- Allows switching active/non-active nodepools separately with `--switch-active-only`
+- Idempotent — only updates what is needed
+- Provides colorized, sectioned CLI output
 
-The tool provides colorized, sectioned output for all actions and statuses, making it easy to see what was updated, what was already current, and what needs attention.
+## How the A/B upgrade works
 
-You can alter this behavior with the following options:
+The GitHub Action creates **3 sequential PRs** per stack:
 
-- `--minor` to specify a minor version to upgrade to, e.g. `1.26`
-- `--latest` to upgrade to the latest available version, instead of the second to latest
-- `--image` to upgrade to a specific version, e.g. `1.25.16-gke.1041000`
-- `--switch-active-only` to only switch all *_NODE_POOL_ACTIVE values between a and b, without touching any Kubernetes version fields (see below)
+```mermaid
+graph LR
+    A["PR #1<br/>Upgrade control plane +<br/>non-active pools"] --> B["PR #2<br/>Switch active pools<br/>(traffic moves)"]
+    B --> C["PR #3<br/>Upgrade now<br/>non-active pools"]
+```
 
-Please note, that `--minor/--latest` and `--image` are mutually exclusive.
+| Step | What happens | Risk |
+|------|-------------|------|
+| **PR #1** | Control plane + non-active pools upgraded to new version | None — traffic still on old pools |
+| **PR #2** | Active/non-active flags flipped — traffic moves to upgraded pools | Rollback: run `--switch-active-only` again |
+| **PR #3** | Previously active pools (now non-active) upgraded | None — no traffic on these pools |
+
+Each PR is based on the previous one's branch, giving a safe, reviewable, step-by-step upgrade path.
 
 ## Requirements
 
-- Python 3.8+ with `pip`
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
 
 ## Installation
 
-You can use Docker image `ghcr.io/keboola/gke-upgrade-tool:latest` (see below for usage)
+### Local (with uv)
 
-Or install the tool locally:
+```bash
+# From a release tarball
+uv tool install gke_upgrade_tool-*.tar.gz
 
-- Download the latest release from [Releases](https://github.com/keboola/gke-upgrade-tool/releases/latest)
-- `pip install gke_upgrade_tool-*.tar.gz`
-- `gke-upgrade-tool --help`
+# Or from source
+git clone https://github.com/keboola/gke-upgrade-tool.git
+cd gke-upgrade-tool
+uv sync
+uv run gke-upgrade-tool --help
+```
+
+### Docker
+
+```bash
+docker run --rm \
+  -v /path/to/infrastructure.tfvars:/app/infrastructure.tfvars \
+  ghcr.io/keboola/gke-upgrade-tool:latest /app/infrastructure.tfvars
+```
 
 ## Usage
 
 ### Local
 
 ```bash
-gke-upgrade-tool /path/to/your/env.yaml
+# Auto-detect minor version, use second-to-latest build
+gke-upgrade-tool <stack>/infrastructure.tfvars
 
-# Or specify minor version to upgrade to
-gke-upgrade-tool /path/to/your/env.yaml -m 1.26
+# Specify minor version
+gke-upgrade-tool <stack>/infrastructure.tfvars -m 1.33
 
-# Use the latest GKE version of the specified minor version
-gke-upgrade-tool /path/to/your/env.yaml -m 1.26 -l
+# Use the latest build for a minor version
+gke-upgrade-tool <stack>/infrastructure.tfvars -m 1.33 -l
 
-# Upgrade to a specific GKE version
-gke-upgrade-tool /path/to/your/env.yaml -i 1.25.16-gke.1041000
+# Use a specific build version
+gke-upgrade-tool <stack>/infrastructure.tfvars -i 1.33.5-gke.1162000
 
-# Switch active/non-active nodepools only (does not touch Kubernetes version fields)
-gke-upgrade-tool /path/to/your/env.yaml --switch-active-only
+# Switch active/non-active nodepools only
+gke-upgrade-tool <stack>/infrastructure.tfvars --switch-active-only
 ```
 
 ### Docker
 
 ```bash
-docker run --rm -v /path/to/your/env.yaml:/env.yaml ghcr.io/keboola/gke-upgrade-tool:latest /env.yaml
+docker run --rm \
+  -v $(pwd)/<stack>/infrastructure.tfvars:/app/infrastructure.tfvars \
+  ghcr.io/keboola/gke-upgrade-tool:latest /app/infrastructure.tfvars -m 1.33
 ```
 
 ### GitHub Actions
 
-Minimal usage example:
+<details>
+<summary>Minimal example</summary>
 
 ```yaml
-- uses: "keboola/gke-upgrade-tool@main"
+- uses: "keboola/gke-upgrade-tool@v0.1.0"
   with:
     kbc-stack: "dev-keboola-gcp-us-central1"
 ```
 
-Full example:
+</details>
+
+<details>
+<summary>Full example (workflow)</summary>
 
 ```yaml
 name: Check and upgrade the GKE version
@@ -100,15 +130,15 @@ on:
         required: true
         type: string
       gke-minor-version:
-        description: "GKE minor version to upgrade to, leave empty to use minor version from env.yaml"
+        description: "GKE minor version to upgrade to, leave empty to auto-detect"
         required: false
         type: string
       use-latest:
-        description: "Use the latest GKE version"
+        description: "Use the latest GKE version (default: second-to-latest)"
         required: false
         type: boolean
       specific-version:
-        description: "Specific GKE version to upgrade to"
+        description: "Specific GKE version to upgrade to (e.g. 1.33.5-gke.1162000)"
         required: false
         type: string
       jira-ticket:
@@ -128,8 +158,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - uses: "keboola/gke-upgrade-tool@main"
+        uses: actions/checkout@v6
+      - uses: "keboola/gke-upgrade-tool@v0.1.0"
         with:
           kbc-stack: ${{ inputs.kbc-stack }}
           gke-minor-version: ${{ inputs.gke-minor-version }}
@@ -138,60 +168,94 @@ jobs:
           jira-ticket: ${{ inputs.jira-ticket }}
 ```
 
-## Example
+</details>
+
+## CLI reference
+
+```
+usage: gke-upgrade-tool [-h] [-i IMAGE] [-m MINOR] [-l] [--switch-active-only] config_file
+
+Upgrade GKE version in infrastructure.tfvars
+
+positional arguments:
+  config_file           Path to infrastructure.tfvars file
+
+options:
+  -h, --help            show this help message and exit
+  -i, --image IMAGE     Use specific GKE build version (e.g. 1.33.5-gke.1162000)
+  -m, --minor MINOR     GKE minor version to upgrade to (e.g. 1.33)
+  -l, --latest          Use the latest build for the target minor version
+  --switch-active-only  Switch active nodepools only, do not change any version fields
+```
+
+> [!NOTE]
+> `-m`/`-l` and `-i` are mutually exclusive.
+
+## Example output
+
+### Upgrading non-active pools
 
 ```console
-$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml -m 1.28
+$ gke-upgrade-tool my-stack/infrastructure.tfvars -m 1.33
 
-🔎 Highest GKE version in file is: 1.27.16-gke.2703000
-🎉 Second to latest GKE version for minor version 1.28 is: 1.28.15-gke.2169000
+🔎 Highest GKE version in file is: 1.33.4-gke.1000000
+🎉 Second to latest GKE version for minor version 1.33 is: 1.33.9-gke.1060000
 
 === GKE Control Plane ===
-✅ Upgraded to 1.28.15-gke.2169000
+✅ Upgraded to 1.33.9-gke.1060000
 
 === Nodepools ===
-MAIN:
-  • Active: a (version: 1.27.16-gke.2703000)
-  • Non-active: b (version: 1.27.16-gke.2703000)
-  ✅ Upgraded non-active pool 'b' to 1.28.15-gke.2169000
-  MAIN_NODE_POOL_A_KUBERNETES_VERSION (active) is at 1.27.16-gke.2703000
-ECK:
-  • Active: a (version: 1.27.16-gke.2703000)
-  • Non-active: b (version: 1.27.16-gke.2703000)
-  ✅ Upgraded non-active pool 'b' to 1.28.15-gke.2169000
-  ECK_NODE_POOL_A_KUBERNETES_VERSION (active) is at 1.27.16-gke.2703000
+main:
+  • Active: b (version: 1.33.4-gke.1000000)
+  • Non-active: a (version: 1.33.4-gke.1000000)
+  ✅ Upgraded non-active pool 'a' to 1.33.9-gke.1060000
+eck:
+  • Active: b (version: 1.33.4-gke.1000000)
+  • Non-active: a (version: 1.33.4-gke.1000000)
+  ✅ Upgraded non-active pool 'a' to 1.33.9-gke.1060000
 ...
 
 ✔️ Control plane and non-active nodepools upgraded.
+```
 
-# Switch active/non-active nodepools only
-$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml --switch-active-only
+### Switching active pools
+
+```console
+$ gke-upgrade-tool my-stack/infrastructure.tfvars --switch-active-only
 
 === Switching Active Nodepools ===
-🔄 MAIN_NODE_POOL_ACTIVE: a -> b
-🔄 ECK_NODE_POOL_ACTIVE: a -> b
-🔄 JOB_QUEUE_JOBS_NODE_POOL_ACTIVE: a -> b
-🔄 JOB_QUEUE_JOBS_LARGE_NODE_POOL_ACTIVE: a -> b
-🔄 SANDBOX_NODE_POOL_ACTIVE: a -> b
-🔄 All *_NODE_POOL_ACTIVE values switched.
+🔄 node_pool_main_active: b -> a
+🔄 node_pool_eck_active: b -> a
+🔄 node_pool_job_queue_jobs_active: b -> a
+...
+🔄 All active nodepool flags switched.
 ✅ Switched active nodepools only. Exiting.
+```
 
-# Running again...
-$ gke-upgrade-tool dev-keboola-gcp-us-central1/terraform/env.yaml -m 1.28
+### Already up-to-date
 
-🔎 Highest GKE version in file is: 1.28.15-gke.2169000
-🎉 Second to latest GKE version for minor version 1.28 is: 1.28.15-gke.2169000
+```console
+$ gke-upgrade-tool my-stack/infrastructure.tfvars -m 1.33
+
+🔎 Highest GKE version in file is: 1.33.9-gke.1060000
+🎉 Second to latest GKE version for minor version 1.33 is: 1.33.9-gke.1060000
 
 === GKE Control Plane ===
-🫡 Already at 1.28.15-gke.2169000
+🫡 Already at 1.33.9-gke.1060000
 
 === Nodepools ===
-MAIN:
-  • Active: b (version: 1.28.15-gke.2169000)
-  • Non-active: a (version: 1.28.15-gke.2169000)
-  🫡 Non-active pool 'a' already at 1.28.15-gke.2169000
-  MAIN_NODE_POOL_B_KUBERNETES_VERSION (active) is at 1.28.15-gke.2169000
+main:
+  🫡 Non-active pool 'a' already at 1.33.9-gke.1060000
 ...
 
 🫡 Everything is already up-to-date. Nothing to do.
 ```
+
+## Recovery
+
+> [!TIP]
+> The tool is idempotent — re-running it will pick up where it left off.
+
+- Each PR is independent — you can merge or revert individual phases
+- To undo a pool switch: run `--switch-active-only` again (it toggles a↔b)
+- If the Google feed is temporarily unavailable: use `-i` with a known version to bypass the feed

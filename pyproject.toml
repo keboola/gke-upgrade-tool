@@ -1,0 +1,21 @@
+[project]
+name = "gke-upgrade-tool"
+description = "Prepares KBC Stacks infrastructure.tfvars for GKE upgrade"
+readme = "README.md"
+requires-python = ">=3.12"
+dynamic = ["version"]
+dependencies = [
+    "colorama>=0.4.6",
+    "requests>=2.32",
+    "semver>=3.0",
+]
+
+[project.scripts]
+gke-upgrade-tool = "gke_upgrade_tool.main:main"
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"

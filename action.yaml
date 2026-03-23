@@ -21,10 +21,8 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up Python 3.13
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.13"
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
     - uses: robinraju/release-downloader@v1
       with:
         repository: "keboola/gke-upgrade-tool"
@@ -33,10 +31,10 @@ runs:
     - name: Setup environment
       shell: bash
       run: |
-        pip install gke*.tar.gz
+        uv tool install gke*.tar.gz
         git config user.name github-actions
         git config user.email github-actions@github.com
-        GKE_TOOL_ARGS=${{ inputs.kbc-stack }}/terraform/env.yaml
+        GKE_TOOL_ARGS=${{ inputs.kbc-stack }}/infrastructure.tfvars
         if [ -n "${{ inputs.gke-minor-version }}" ]; then
           GKE_TOOL_ARGS+=" -m ${{ inputs.gke-minor-version }}"
         fi
@@ -58,12 +56,12 @@ runs:
         if [ $(gh label list | grep -c ${{ inputs.kbc-stack }}) -eq 0 ]; then
           gh label create ${{ inputs.kbc-stack }}
         fi
-    - name: Update env.yaml (Step 1 - Upgrade control plane and non-active nodepools)
+    - name: Step 1 - Upgrade control plane and non-active nodepools
       shell: bash
       run: |
         gke-upgrade-tool $GKE_TOOL_ARGS
         if [ -z "$(git diff)" ]; then
-          echo "No changes in the env.yaml file. Exiting."
+          echo "No changes in infrastructure.tfvars. Exiting."
           exit 0
         else
           git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-1
@@ -78,7 +76,7 @@ runs:
         )
           gh pr create --title "Upgrade GKE on ${{ inputs.kbc-stack }} #1 (Upgrade control plane and non-active nodepools)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ github.ref_name }} --head ${{ inputs.kbc-stack }}-gke-upgrade-1
         fi
-    - name: Update env.yaml (Step 2 - Switch active/non-active nodepools)
+    - name: Step 2 - Switch active/non-active nodepools
       shell: bash
       run: |
         if [ -z "$(git branch --list ${{ inputs.kbc-stack }}-gke-upgrade-1)" ]; then
@@ -98,7 +96,7 @@ runs:
         )
           gh pr create --title "Upgrade GKE on ${{ inputs.kbc-stack }} #2 (Switch active/non-active nodepools)" --body "$PR_BODY" --label ${{ inputs.kbc-stack }} --base ${{ inputs.kbc-stack }}-gke-upgrade-1 --head ${{ inputs.kbc-stack }}-gke-upgrade-2
         fi
-    - name: Update env.yaml (Step 3 - Upgrade now non-active nodepools)
+    - name: Step 3 - Upgrade now non-active nodepools
       shell: bash
       run: |
         if [ -z "$(git branch --list ${{ inputs.kbc-stack }}-gke-upgrade-2)" ]; then
