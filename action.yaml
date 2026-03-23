@@ -1,5 +1,5 @@
 name: Check and upgrade the GKE version of a specified GCP stack
-description: "This action downloads the latest release of the GKE upgrade tool and runs it to upgrade the GKE version of a specified GCP stack."
+description: "This action runs the GKE upgrade tool via Docker to upgrade the GKE version of a specified GCP stack."
 inputs:
   kbc-stack:
     description: "KBC stack to upgrade"
@@ -21,20 +21,12 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Install uv
-      uses: astral-sh/setup-uv@v7
-    - uses: robinraju/release-downloader@v1
-      with:
-        repository: "keboola/gke-upgrade-tool"
-        latest: true
-        tarBall: true
     - name: Setup environment
       shell: bash
       run: |
-        uv tool install gke*.tar.gz
         git config user.name github-actions
         git config user.email github-actions@github.com
-        GKE_TOOL_ARGS=${{ inputs.kbc-stack }}/infrastructure.tfvars
+        GKE_TOOL_ARGS="${{ inputs.kbc-stack }}/infrastructure.tfvars"
         if [ -n "${{ inputs.gke-minor-version }}" ]; then
           GKE_TOOL_ARGS+=" -m ${{ inputs.gke-minor-version }}"
         fi
@@ -59,7 +51,8 @@ runs:
     - name: Step 1 - Upgrade control plane and non-active nodepools
       shell: bash
       run: |
-        gke-upgrade-tool $GKE_TOOL_ARGS
+        docker run --rm -v "${{ github.workspace }}:/workspace" -w /workspace \
+          ghcr.io/keboola/gke-upgrade-tool:v0.1.0 $GKE_TOOL_ARGS
         if [ -z "$(git diff)" ]; then
           echo "No changes in infrastructure.tfvars. Exiting."
           exit 0
@@ -83,7 +76,8 @@ runs:
           echo "Branch ${{ inputs.kbc-stack }}-gke-upgrade-1 does not exist. Exiting."
           exit 0
         else
-          gke-upgrade-tool $GKE_TOOL_ARGS --switch-active-only
+          docker run --rm -v "${{ github.workspace }}:/workspace" -w /workspace \
+            ghcr.io/keboola/gke-upgrade-tool:v0.1.0 $GKE_TOOL_ARGS --switch-active-only
           git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-2
           git commit -am "Upgrade GKE on ${{ inputs.kbc-stack }} #2 (Switch active/non-active nodepools)"
           git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-2
@@ -103,7 +97,8 @@ runs:
           echo "Branch ${{ inputs.kbc-stack }}-gke-upgrade-2 does not exist. Exiting."
           exit 0
         else
-          gke-upgrade-tool $GKE_TOOL_ARGS
+          docker run --rm -v "${{ github.workspace }}:/workspace" -w /workspace \
+            ghcr.io/keboola/gke-upgrade-tool:v0.1.0 $GKE_TOOL_ARGS
           git checkout -b ${{ inputs.kbc-stack }}-gke-upgrade-3
           git commit -am "Upgrade GKE on ${{ inputs.kbc-stack }} #3 (Upgrade now non-active nodepools)"
           git push origin --set-upstream ${{ inputs.kbc-stack }}-gke-upgrade-3
