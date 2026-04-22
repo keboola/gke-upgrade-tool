@@ -110,7 +110,7 @@ docker run --rm \
 <summary>Minimal example</summary>
 
 ```yaml
-- uses: "keboola/gke-upgrade-tool@v0.1.0"
+- uses: "keboola/gke-upgrade-tool@v0.1.4"
   with:
     kbc-stack: "dev-keboola-gcp-us-central1"
 ```
@@ -160,7 +160,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - uses: "keboola/gke-upgrade-tool@v0.1.0"
+      - uses: "keboola/gke-upgrade-tool@v0.1.4"
         with:
           kbc-stack: ${{ inputs.kbc-stack }}
           gke-minor-version: ${{ inputs.gke-minor-version }}
@@ -266,20 +266,37 @@ main:
 Releases are driven by git tags. Pushing a tag matching `v*` triggers [`.github/workflows/main.yaml`](.github/workflows/main.yaml), which:
 
 1. Builds the Python package and attaches the tarball to a new GitHub Release (auto-generated notes).
-2. Builds and pushes a multi-arch Docker image to `ghcr.io/keboola/gke-upgrade-tool` tagged with the version (e.g. `v0.1.2`).
+2. Builds and pushes a multi-arch Docker image to `ghcr.io/keboola/gke-upgrade-tool` tagged with the version (e.g. `v0.1.4`).
 
-The composite `action.yaml` pulls the Docker image using `${{ github.action_ref }}`, so the image tag always matches the ref the caller pins (`keboola/gke-upgrade-tool@v0.1.2` → `ghcr.io/keboola/gke-upgrade-tool:v0.1.2`). No manual version sync in `action.yaml` is needed.
+### Image tag in `action.yaml` must be bumped before tagging
+
+The composite `action.yaml` hardcodes the Docker image tag on three `docker run` lines:
+
+```yaml
+ghcr.io/keboola/gke-upgrade-tool:vX.Y.Z
+```
+
+This tag **must** be updated in the same commit as the release, before the git tag is pushed. We intentionally do not use `${{ github.action_ref }}` — it is [empty in composite action `run:` steps](https://github.com/actions/runner/issues/2473), which silently breaks the image reference at caller runtime.
 
 ### Cutting a release
 
 1. Merge all changes to `main`.
-2. Create and push an annotated tag:
+2. On `main`, bump the image tag in `action.yaml` (three occurrences — one per `docker run` step) to the new version, and bump the minimal example versions in `README.md`. Commit with a message like `chore: Release v0.1.4`.
 
     ```bash
     git checkout main && git pull
-    git tag -a v0.1.3 -m "v0.1.3"
-    git push origin v0.1.3
+    sed -i '' 's|ghcr.io/keboola/gke-upgrade-tool:v[0-9.]*|ghcr.io/keboola/gke-upgrade-tool:v0.1.4|g' action.yaml
+    # review README.md and bump the two `keboola/gke-upgrade-tool@vX.Y.Z` example refs
+    git commit -am "chore: Release v0.1.4"
+    git push origin main
     ```
 
-3. Wait for the `Build and Publish` workflow to finish — verify the [release](https://github.com/keboola/gke-upgrade-tool/releases) and the matching [Docker image](https://github.com/keboola/gke-upgrade-tool/pkgs/container/gke-upgrade-tool) tag exist.
-4. Bump consumers (e.g. `keboola/kbc-stacks`) to the new `keboola/gke-upgrade-tool@vX.Y.Z` ref.
+3. Create and push an annotated tag pointing at that release commit:
+
+    ```bash
+    git tag -a v0.1.4 -m "v0.1.4"
+    git push origin v0.1.4
+    ```
+
+4. Wait for the `Build and Publish` workflow to finish — verify the [release](https://github.com/keboola/gke-upgrade-tool/releases) and the matching [Docker image](https://github.com/keboola/gke-upgrade-tool/pkgs/container/gke-upgrade-tool) tag exist.
+5. Bump consumers (e.g. `keboola/kbc-stacks`) to the new `keboola/gke-upgrade-tool@vX.Y.Z` ref.
