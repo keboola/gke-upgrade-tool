@@ -116,15 +116,18 @@ def discover_version_keys(values: dict, pool_letter: str) -> list:
     return [k for k in values if k.endswith(suffix) and k.startswith("node_pool_")]
 
 
-def update_gke_version(values: dict, new_gke_version: str) -> bool:
-    """Update the control plane and all non-active nodepools to the new GKE version."""
-    updated = False
+def update_gke_version(values: dict, new_gke_version: str) -> set:
+    """Update the control plane and all non-active nodepools to the new GKE version.
+
+    Returns the set of keys that were actually modified (empty if nothing changed).
+    """
+    modified = set()
 
     print(f"\n{Style.BRIGHT}{Fore.MAGENTA}=== GKE Control Plane ==={Style.RESET_ALL}")
     if values["kubernetes_version"] != new_gke_version:
         values["kubernetes_version"] = new_gke_version
         print(f"{Fore.GREEN}✅ Upgraded to {new_gke_version}{Style.RESET_ALL}")
-        updated = True
+        modified.add("kubernetes_version")
     else:
         print(f"{Fore.YELLOW}🫡 Already at {new_gke_version}{Style.RESET_ALL}")
 
@@ -155,7 +158,7 @@ def update_gke_version(values: dict, new_gke_version: str) -> bool:
                 print(
                     f"  {Fore.GREEN}✅ Upgraded non-active pool '{non_active_letter}' to {new_gke_version}{Style.RESET_ALL}"
                 )
-                updated = True
+                modified.add(non_active_key)
             else:
                 print(
                     f"  {Fore.YELLOW}🫡 Non-active pool '{non_active_letter}' already at {new_gke_version}{Style.RESET_ALL}"
@@ -167,32 +170,38 @@ def update_gke_version(values: dict, new_gke_version: str) -> bool:
             f"  {Fore.LIGHTBLACK_EX}{active_key} (active) is at {active_version}{Style.RESET_ALL}"
         )
 
-    if not updated:
+    if not modified:
         print(
             f"\n{Style.BRIGHT}{Fore.GREEN}🫡 Everything is already up-to-date. Nothing to do.{Style.RESET_ALL}"
         )
-        return False
+        return modified
 
     print(
         f"\n{Style.BRIGHT}{Fore.GREEN}✔️ Control plane and non-active nodepools upgraded.{Style.RESET_ALL}"
     )
-    return True
+    return modified
 
 
-def switch_only_active_nodepools(values: dict) -> None:
-    """Switch all node_pool_*_active values between 'a' and 'b'."""
+def switch_only_active_nodepools(values: dict) -> set:
+    """Switch all node_pool_*_active values between 'a' and 'b'.
+
+    Returns the set of keys that were modified.
+    """
     print(
         f"\n{Style.BRIGHT}{Fore.MAGENTA}=== Switching Active Nodepools ==={Style.RESET_ALL}"
     )
+    modified = set()
     active_pools = discover_pool_active_keys(values)
     for pool_name, active_letter in active_pools.items():
         key = f"node_pool_{pool_name}_active"
         new_letter = "b" if active_letter == "a" else "a"
         values[key] = new_letter
+        modified.add(key)
         print(f"{Fore.CYAN}🔄 {key}: {active_letter} -> {new_letter}{Style.RESET_ALL}")
     print(
         f"{Style.BRIGHT}{Fore.GREEN}🔄 All active nodepool flags switched.{Style.RESET_ALL}"
     )
+    return modified
 
 
 def main() -> None:
@@ -228,8 +237,9 @@ def main() -> None:
         values, lines = tfvars.read(args.config_file)
 
         if args.switch_active_only:
-            switch_only_active_nodepools(values)
-            tfvars.write(args.config_file, values, lines)
+            modified = switch_only_active_nodepools(values)
+            if modified:
+                tfvars.write(args.config_file, values, lines, modified)
             print(
                 f"{Style.BRIGHT}{Fore.GREEN}✅ Switched active nodepools only. Exiting.{Style.RESET_ALL}"
             )
@@ -251,9 +261,9 @@ def main() -> None:
             print(f"{Fore.RED}❌ Could not determine target GKE version. Exiting.{Style.RESET_ALL}")
             exit(1)
 
-        updated = update_gke_version(values, new_gke_version)
-        if updated:
-            tfvars.write(args.config_file, values, lines)
+        modified = update_gke_version(values, new_gke_version)
+        if modified:
+            tfvars.write(args.config_file, values, lines, modified)
 
     except Exception as e:
         print(f"{Style.BRIGHT}{Fore.RED}❌ Error: {e}{Style.RESET_ALL}")
