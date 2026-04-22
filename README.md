@@ -15,6 +15,7 @@
 - [CLI reference](#cli-reference)
 - [Example output](#example-output)
 - [Recovery](#recovery)
+- [Releasing](#releasing)
 
 ## Overview
 
@@ -259,3 +260,26 @@ main:
 - Each PR is independent — you can merge or revert individual phases
 - To undo a pool switch: run `--switch-active-only` again (it toggles a↔b)
 - If the Google feed is temporarily unavailable: use `-i` with a known version to bypass the feed
+
+## Releasing
+
+Releases are driven by git tags. Pushing a tag matching `v*` triggers [`.github/workflows/main.yaml`](.github/workflows/main.yaml), which:
+
+1. Builds the Python package and attaches the tarball to a new GitHub Release (auto-generated notes).
+2. Builds and pushes a multi-arch Docker image to `ghcr.io/keboola/gke-upgrade-tool` tagged with the version (e.g. `v0.1.2`).
+
+The composite `action.yaml` pulls the Docker image using `${{ github.action_ref }}`, so the image tag always matches the ref the caller pins (`keboola/gke-upgrade-tool@v0.1.2` → `ghcr.io/keboola/gke-upgrade-tool:v0.1.2`). No manual version sync in `action.yaml` is needed.
+
+### Cutting a release
+
+1. Merge all changes to `main`.
+2. Create and push an annotated tag:
+
+    ```bash
+    git checkout main && git pull
+    git tag -a v0.1.3 -m "v0.1.3"
+    git push origin v0.1.3
+    ```
+
+3. Wait for the `Build and Publish` workflow to finish — verify the [release](https://github.com/keboola/gke-upgrade-tool/releases) and the matching [Docker image](https://github.com/keboola/gke-upgrade-tool/pkgs/container/gke-upgrade-tool) tag exist.
+4. Bump consumers (e.g. `keboola/kbc-stacks`) to the new `keboola/gke-upgrade-tool@vX.Y.Z` ref.
