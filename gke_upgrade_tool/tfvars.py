@@ -57,21 +57,30 @@ def read(filepath):
     return values, lines
 
 
-def write(filepath, values, lines):
-    """Write a .tfvars file back, updating only changed values.
+def write(filepath, values, lines, modified_keys):
+    """Write a .tfvars file back, rewriting only the given top-level keys.
+
+    The parser does not understand nested HCL maps, so inner keys from nested
+    objects (e.g. big_query_backends.*.folder_display_name) end up flattened
+    into the values dict. Rewriting every line whose key appears in values
+    would corrupt those nested blocks. Callers must therefore pass the
+    explicit set of top-level keys they intend to change.
 
     Args:
         filepath: path to write
         values: dict of key->value (the modified values)
         lines: original lines list (from read())
+        modified_keys: iterable of top-level key names that should be rewritten
     """
+    modified_keys = set(modified_keys)
     output = []
+    rewritten = set()
 
     for line in lines:
         m = _KV_PATTERN.match(line)
         if m:
             key = m.group(2)
-            if key in values:
+            if key in modified_keys and key not in rewritten:
                 indent = m.group(1)
                 separator = m.group(3)
                 old_raw = m.group(4).strip()
@@ -86,9 +95,16 @@ def write(filepath, values, lines):
                     new_raw = new_val
 
                 output.append(f"{indent}{key}{separator}{new_raw}{trailing}")
+                rewritten.add(key)
                 continue
 
         output.append(line)
+
+    missing = modified_keys - rewritten
+    if missing:
+        raise KeyError(
+            f"Refusing to write: modified keys not found as top-level lines: {sorted(missing)}"
+        )
 
     with open(filepath, "w", encoding="utf-8") as f:
         f.write("\n".join(output) + "\n")
