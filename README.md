@@ -280,23 +280,33 @@ This tag **must** be updated in the same commit as the release, before the git t
 
 ### Cutting a release
 
-1. Merge all changes to `main`.
-2. On `main`, bump the image tag in `action.yaml` (three occurrences — one per `docker run` step) to the new version, and bump the minimal example versions in `README.md`. Commit with a message like `chore: Release v0.1.4`.
+`main` is protected — all version bumps must land via a pull request.
+
+1. Create a release-bump branch off the latest `main`:
 
     ```bash
     git checkout main && git pull
-    sed -i '' 's|ghcr.io/keboola/gke-upgrade-tool:v[0-9.]*|ghcr.io/keboola/gke-upgrade-tool:v0.1.4|g' action.yaml
-    # review README.md and bump the two `keboola/gke-upgrade-tool@vX.Y.Z` example refs
-    git commit -am "chore: Release v0.1.4"
-    git push origin main
+    git checkout -b release/v0.1.4
     ```
 
-3. Create and push an annotated tag pointing at that release commit:
+2. Bump the image tag in `action.yaml` (three occurrences — one per `docker run` step) and the two minimal-example refs in `README.md`:
 
     ```bash
+    sed -i '' 's|ghcr.io/keboola/gke-upgrade-tool:v[0-9.]*|ghcr.io/keboola/gke-upgrade-tool:v0.1.4|g' action.yaml
+    sed -i '' 's|keboola/gke-upgrade-tool@v[0-9.]*|keboola/gke-upgrade-tool@v0.1.4|g' README.md
+    git commit -am "chore: Release v0.1.4"
+    git push -u origin release/v0.1.4
+    ```
+
+3. Open a PR against `main`, get it reviewed, and merge it.
+
+4. Create and push an annotated tag pointing at the merge commit on `main`:
+
+    ```bash
+    git checkout main && git pull
     git tag -a v0.1.4 -m "v0.1.4"
     git push origin v0.1.4
     ```
 
-4. Wait for the `Build and Publish` workflow to finish — verify the [release](https://github.com/keboola/gke-upgrade-tool/releases) and the matching [Docker image](https://github.com/keboola/gke-upgrade-tool/pkgs/container/gke-upgrade-tool) tag exist.
-5. Bump consumers (e.g. `keboola/kbc-stacks`) to the new `keboola/gke-upgrade-tool@vX.Y.Z` ref.
+5. Wait for the `Build and Publish` workflow to finish — verify the [release](https://github.com/keboola/gke-upgrade-tool/releases) and the matching [Docker image](https://github.com/keboola/gke-upgrade-tool/pkgs/container/gke-upgrade-tool) tag exist.
+6. Bump consumers (e.g. `keboola/kbc-stacks`) to the new `keboola/gke-upgrade-tool@vX.Y.Z` ref.
